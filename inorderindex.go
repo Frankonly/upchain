@@ -67,7 +67,7 @@ func (i InorderIndex) Level() int {
 
 // LeavesOnLevel returns n that i is the n-th leaf on this level
 func (i InorderIndex) LeavesOnLevel() uint64 {
-	return i >> (1 + i.Level())
+	return uint64(i) >> (1 + i.Level())
 }
 
 // IsLeaf judges whether the inorder index is a leaf
