@@ -1,60 +1,11 @@
-package upchain
+package storage
 
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/syndtr/goleveldb/leveldb"
+
+	"upchain/crypto"
 )
-
-type MerkleAccumulator interface {
-	Append([]byte) (uint64, error)
-	Get(uint64) ([]byte, error)
-	Digest() []byte
-	GetProof(uint64) ([][]byte, error)
-}
-
-type KvStore interface {
-	Get(key []byte) ([]byte, error)
-	Put(key, value []byte) error
-	Delete(key []byte) error
-}
-
-type LevelDBHelper struct {
-	db *leveldb.DB
-}
-
-func NewLevelDB(name string) (KvStore, error) {
-	db, err := leveldb.OpenFile(name, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return LevelDBHelper{db: db}, nil
-}
-
-func (h LevelDBHelper) Close() error {
-	return h.db.Close()
-}
-
-func (h LevelDBHelper) Get(key []byte) ([]byte, error) {
-	return h.db.Get(key, nil)
-}
-
-func (h LevelDBHelper) Put(key, value []byte) error {
-	if err := h.db.Put(key, value, nil); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (h LevelDBHelper) Delete(key []byte) error {
-	if err := h.db.Delete(key, nil); err != nil {
-		return err
-	}
-
-	return nil
-}
 
 const (
 	sizeKey      = "s"
@@ -76,7 +27,7 @@ type MerkleTreeStreaming struct {
 
 func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 	stream := &MerkleTreeStreaming{db: db}
-	stream.placeholderHash = Hash([]byte(PlaceholderHash))
+	stream.placeholderHash = crypto.Hash([]byte(PlaceholderHash))
 
 	res, err := db.Get([]byte(sizeKey))
 	if err != nil {
@@ -101,7 +52,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 				return nil, err
 			}
 
-			hash = HashNodes(siblingHash, hash)
+			hash = crypto.HashNodes(siblingHash, hash)
 			index = index.Parent()
 
 			if err := db.Put(merkleKey(index.Postorder()), hash); err != nil {
@@ -194,7 +145,7 @@ func (s MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
 		}
 
 		index = index.Parent()
-		hash = HashNodes(s.leftSiblings[i], hash)
+		hash = crypto.HashNodes(s.leftSiblings[i], hash)
 	}
 
 	// update size
@@ -215,9 +166,9 @@ func (s MerkleTreeStreaming) Digest() []byte {
 
 		for index.Level() < rootLevel {
 			if index.IsLeftChild() {
-				hash = HashNodes(hash, s.placeholderHash)
+				hash = crypto.HashNodes(hash, s.placeholderHash)
 			} else {
-				hash = HashNodes(s.leftSiblings[index.Level()], hash)
+				hash = crypto.HashNodes(s.leftSiblings[index.Level()], hash)
 			}
 
 			index = index.Parent()
@@ -288,7 +239,7 @@ func (s MerkleTreeStreaming) getCurrentHash(index InorderIndex) ([]byte, error) 
 		return nil, err
 	}
 
-	return HashNodes(leftHash, rightHash), nil
+	return crypto.HashNodes(leftHash, rightHash), nil
 }
 
 func merkleKey(id uint64) []byte {

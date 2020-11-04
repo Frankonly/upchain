@@ -1,0 +1,15 @@
+package storage
+
+type MerkleAccumulator interface {
+	Append([]byte) (uint64, error)
+	Get(uint64) ([]byte, error)
+	Digest() []byte
+	GetProof(uint64) ([][]byte, error)
+}
+
+type KvStore interface {
+	Get(key []byte) ([]byte, error)
+	Put(key, value []byte) error
+	Delete(key []byte) error
+	Close() error
+}

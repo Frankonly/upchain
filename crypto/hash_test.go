@@ -1,4 +1,4 @@
-package upchain
+package crypto
 
 import (
 	"encoding/hex"
