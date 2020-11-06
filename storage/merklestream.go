@@ -2,9 +2,12 @@ package storage
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 
 	"upchain/crypto"
+
+	lerrors "github.com/syndtr/goleveldb/leveldb/errors"
 )
 
 const (
@@ -12,7 +15,7 @@ const (
 	merklePrefix = "m"
 )
 
-const PlaceholderHash = "merkle placeholder"
+const HashPlaceholder = "merkle placeholder"
 
 type MerkleTreeStreaming struct {
 	db              KvStore
@@ -27,15 +30,23 @@ type MerkleTreeStreaming struct {
 
 func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 	stream := &MerkleTreeStreaming{db: db}
-	stream.placeholderHash = crypto.Hash([]byte(PlaceholderHash))
+	stream.placeholderHash = crypto.Hash([]byte(HashPlaceholder))
 
 	res, err := db.Get([]byte(sizeKey))
 	if err != nil {
-		return nil, err
+		if !errors.Is(lerrors.ErrNotFound, err) {
+			return nil, err
+		}
+
+		res = make([]byte, 8)
 	}
 
 	stream.next = binary.BigEndian.Uint64(res)
 	if stream.next == 0 {
+		if err := db.Put([]byte(sizeKey), res); err != nil {
+			return nil, err
+		}
+
 		stream.isRootValid = false
 	} else {
 		index := FromPostorder(stream.next - 1)
@@ -71,7 +82,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 		}
 
 		lastLeaf := index.RightMostChild()
-		rootLevel := RootLevelFromLeaves(lastLeaf.LeavesOnLevel())
+		rootLevel := RootLevelFromLeafIndex(lastLeaf.LeafIndexOnLevel())
 
 		for index.Level() <= rootLevel {
 			// judge whether the node is frozen
@@ -107,25 +118,26 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 		stream.root = index
 		stream.rootHash = root
 	}
+
 	return stream, nil
 }
 
-func (s MerkleTreeStreaming) Get(id uint64) ([]byte, error) {
-	index := FromLeaves(id)
+func (s *MerkleTreeStreaming) Get(id uint64) ([]byte, error) {
+	index := FromLeafIndex(id)
 	if index.Postorder() >= s.next {
 		return nil, fmt.Errorf("id out of range: %d", id)
 	}
 	return s.db.Get(merkleKey(index.Postorder()))
 }
 
-func (s MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
+func (s *MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
 	index := FromPostorder(s.next)
 	if !index.IsLeaf() {
 		return 0, fmt.Errorf("current position for writting is not a leaf")
 	}
 
 	s.isRootValid = false
-	id := index.LeavesOnLevel()
+	id := index.LeafIndexOnLevel()
 
 	for i := range s.leftSiblings {
 		if err := s.db.Put(merkleKey(index.Postorder()), hash); err != nil {
@@ -136,7 +148,7 @@ func (s MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
 		if index.IsLeftChild() {
 			s.leftSiblings[i] = hash
 			s.lastHash = hash
-			if s.root.Parent() == index {
+			if s.root.Parent() == index || s.root == 0 {
 				s.root = index
 				s.rootHash = hash
 				s.isRootValid = true
@@ -158,13 +170,12 @@ func (s MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
 	return id, nil
 }
 
-func (s MerkleTreeStreaming) Digest() []byte {
+func (s *MerkleTreeStreaming) Digest() []byte {
 	if !s.isRootValid {
 		index := FromPostorder(s.next - 1)
 		hash := s.lastHash
-		rootLevel := s.root.Level()
 
-		for index.Level() < rootLevel {
+		for index.LeftMostChild() != 0 {
 			if index.IsLeftChild() {
 				hash = crypto.HashNodes(hash, s.placeholderHash)
 			} else {
@@ -180,8 +191,8 @@ func (s MerkleTreeStreaming) Digest() []byte {
 	return s.rootHash
 }
 
-func (s MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
-	index := FromLeaves(id)
+func (s *MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
+	index := FromLeafIndex(id)
 
 	if index.Postorder() >= s.next {
 		return nil, fmt.Errorf("id out of range: %d", id)
@@ -210,7 +221,11 @@ func (s MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
 	return hashPath, nil
 }
 
-func (s MerkleTreeStreaming) getCurrentHash(index InorderIndex) ([]byte, error) {
+func (s *MerkleTreeStreaming) Close() error {
+	return s.db.Close()
+}
+
+func (s *MerkleTreeStreaming) getCurrentHash(index InorderIndex) ([]byte, error) {
 	if index.Postorder() < s.next {
 		return s.db.Get(merkleKey(index.Postorder()))
 	}

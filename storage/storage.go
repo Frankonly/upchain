@@ -5,6 +5,7 @@ type MerkleAccumulator interface {
 	Get(uint64) ([]byte, error)
 	Digest() []byte
 	GetProof(uint64) ([][]byte, error)
+	Close() error
 }
 
 type KvStore interface {

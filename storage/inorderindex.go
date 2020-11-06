@@ -13,14 +13,14 @@ const maxLevel = 63
 // InorderIndex represents the inorder traversal index of a binary tree with limited level
 type InorderIndex uint64
 
-// FromLeavesOnLevel calculates inorder index from the number of leaves upper certain level
-func FromLeavesOnLevel(leavesOnLevel uint64, level int) InorderIndex {
-	return InorderIndex(leavesOnLevel<<(level+1) | (1<<level - 1))
+// FromIndexOnLevel calculates inorder index from the index of nodes upper certain level
+func FromIndexOnLevel(indexOnLevel uint64, level int) InorderIndex {
+	return InorderIndex(indexOnLevel<<(level+1) | (1<<level - 1))
 }
 
-// FromLeaves calculates inorder index from the number of leaves
-func FromLeaves(leaves uint64) InorderIndex {
-	return FromLeavesOnLevel(leaves, 0)
+// FromLeafIndex calculates inorder index from the index of leaves
+func FromLeafIndex(leafIndex uint64) InorderIndex {
+	return FromIndexOnLevel(leafIndex, 0)
 }
 
 // FromPostorder calculates inorder index from postorder index
@@ -36,7 +36,7 @@ func FromPostorder(postorder uint64) InorderIndex {
 		fullBinarySize >>= 1
 	}
 
-	return FromLeavesOnLevel(bitmap>>postorder, int(postorder))
+	return FromIndexOnLevel(bitmap>>postorder, int(postorder))
 }
 
 func (i InorderIndex) children() uint64 {
@@ -65,8 +65,8 @@ func (i InorderIndex) Level() int {
 	return bits.TrailingZeros64(^uint64(i))
 }
 
-// LeavesOnLevel returns n that i is the n-th leaf on this level
-func (i InorderIndex) LeavesOnLevel() uint64 {
+// LeafIndexOnLevel returns n that i is the n-th leaf on this level
+func (i InorderIndex) LeafIndexOnLevel() uint64 {
 	return uint64(i) >> (1 + i.Level())
 }
 
@@ -77,7 +77,7 @@ func (i InorderIndex) IsLeaf() bool {
 
 // IsLeftChild judges whether the inorder index is or can be a left child
 func (i InorderIndex) IsLeftChild() bool {
-	return i&isolateRightMostZeroBit(i)<<1 == 0
+	return i&(isolateRightMostZeroBit(i)<<1) == 0
 }
 
 // IsRightChild judges whether the inorder index is or can be a right child
@@ -112,9 +112,9 @@ func (i InorderIndex) RightMostChild() InorderIndex {
 	return i + (InorderIndex(i.children()) >> 1)
 }
 
-// RootLevelFromLeaves calculates the root level of a binary tree containing certain number of leaves
-func RootLevelFromLeaves(leaves uint64) int {
-	return maxLevel + 1 - bits.LeadingZeros64(leaves-1)
+// RootLevelFromLeafIndex calculates the root level of a binary tree containing certain number of leaves
+func RootLevelFromLeafIndex(leafIndex uint64) int {
+	return maxLevel + 1 - bits.LeadingZeros64(leafIndex)
 }
 
 func isolateRightMostZeroBit(x InorderIndex) InorderIndex {
