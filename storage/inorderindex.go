@@ -87,16 +87,16 @@ func (i InorderIndex) IsRightChild() bool {
 
 // LeftChild returns the left child
 func (i InorderIndex) LeftChild() (InorderIndex, error) {
-	if !i.IsLeaf() {
-		return 0, fmt.Errorf("Not leaf")
+	if i.IsLeaf() {
+		return 0, fmt.Errorf("Leaf has no child")
 	}
 	return i & ^(isolateRightMostZeroBit(i) >> 1), nil
 }
 
 // RightChild returns the right child
 func (i InorderIndex) RightChild() (InorderIndex, error) {
-	if !i.IsLeaf() {
-		return 0, fmt.Errorf("Not leaf")
+	if i.IsLeaf() {
+		return 0, fmt.Errorf("Leaf has no child")
 	}
 	return (i | isolateRightMostZeroBit(i)) & ^(isolateRightMostZeroBit(i) >> 1), nil
 }

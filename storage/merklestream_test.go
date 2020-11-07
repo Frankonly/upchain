@@ -2,6 +2,7 @@ package storage
 
 import (
 	"bytes"
+	"fmt"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -36,7 +37,7 @@ func TestMerkleTreeStreaming(t *testing.T) {
 	r.NoError(os.RemoveAll(path))
 }
 
-func TestMerkleTreeStreaming_RW(t *testing.T) {
+func TestMerkleTreeStreamingRW(t *testing.T) {
 	r := require.New(t)
 	rand.Seed(time.Now().UnixNano())
 
@@ -112,6 +113,113 @@ func TestMerkleTreeStreaming_Digest(t *testing.T) {
 	r.NoError(os.RemoveAll(path))
 }
 
+func TestMerkleTreeStreaming_GetProof(t *testing.T) {
+	r := require.New(t)
+	rand.Seed(time.Now().UnixNano())
+
+	path := filepath.Join(os.TempDir(), testDB)
+	r.NoError(os.RemoveAll(path))
+
+	db, err := NewLevelDB(path)
+	r.NoError(err)
+	r.NotNil(db)
+
+	merkle, err := NewMerkleTreeStreaming(db)
+	r.NoError(err)
+	r.NotNil(merkle)
+
+	hashes := make([][]byte, 1025)
+
+	for i := range hashes {
+		hashes[i] = make([]byte, 32)
+		rand.Read(hashes[i])
+
+		id, err := merkle.Append(hashes[i])
+		r.NoError(err)
+		r.EqualValues(i, id)
+
+		digest := merkle.Digest()
+		r.NotEmpty(digest)
+
+		id = rand.Uint64() % uint64(i+1)
+		target, err := merkle.Get(id)
+		r.NoError(err)
+
+		path, err := merkle.GetProof(id)
+		r.NoError(err)
+		r.NotEmpty(path)
+
+		r.Equal(target, path[0])
+		r.Equal(digest, path[len(path)-1])
+		r.True(testVerify(path[0], path[1:]))
+	}
+
+	r.NoError(merkle.Close())
+	r.NoError(os.RemoveAll(path))
+	fmt.Println(count)
+}
+
+func TestMerkleTreeStreamingLoad(t *testing.T) {
+	r := require.New(t)
+	rand.Seed(time.Now().UnixNano())
+
+	path := filepath.Join(os.TempDir(), testDB)
+	r.NoError(os.RemoveAll(path))
+
+	db, err := NewLevelDB(path)
+	r.NoError(err)
+	r.NotNil(db)
+
+	merkle, err := NewMerkleTreeStreaming(db)
+	r.NoError(err)
+	r.NotNil(merkle)
+
+	hashes := make([][]byte, 1025)
+
+	for i := range hashes {
+		hashes[i] = make([]byte, 32)
+		rand.Read(hashes[i])
+
+		id, err := merkle.Append(hashes[i])
+		r.NoError(err)
+		r.EqualValues(i, id)
+
+		digest := merkle.Digest()
+		r.NotEmpty(digest)
+
+		r.NoError(merkle.Close())
+
+		db, err = NewLevelDB(path)
+		r.NoError(err)
+		r.NotNil(db)
+
+		merkle, err = NewMerkleTreeStreaming(db)
+		r.NoError(err)
+		r.NotNil(merkle)
+
+		target, err := merkle.Get(id)
+		r.NoError(err)
+		r.Equal(hashes[i], target)
+
+		digest = merkle.Digest()
+		r.NotEmpty(digest)
+
+		path, err := merkle.GetProof(id)
+		r.NoError(err)
+		r.NotEmpty(path)
+
+		r.Equal(target, path[0])
+		r.Equal(digest, path[len(path)-1])
+		fmt.Println(count)
+		// TODO: cannot pass, need fix
+		r.True(testVerify(path[0], path[1:]))
+	}
+
+	r.NoError(merkle.Close())
+	r.NoError(os.RemoveAll(path))
+	fmt.Println(count)
+}
+
 // testDigest works in a very slow way with O(n^2) complexity, only used for verifying the correctness
 func testDigest(leaves [][]byte) []byte {
 	if len(leaves) == 1 {
@@ -128,4 +236,24 @@ func testDigest(leaves [][]byte) []byte {
 	}
 
 	return testDigest(parents)
+}
+
+var count = 0
+
+// testVerify works in an extreme slow way with O(2^n) complexity, only used for verifying the correctness
+func testVerify(target []byte, path [][]byte) bool {
+	count++
+	if len(path) == 0 {
+		return true
+	}
+
+	if len(path) == 1 {
+		return bytes.Equal(target, path[0])
+	}
+
+	if testVerify(crypto.HashNodes(target, path[0]), path[1:]) {
+		return true
+	}
+
+	return testVerify(crypto.HashNodes(path[0], target), path[1:])
 }

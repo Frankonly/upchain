@@ -84,7 +84,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 		lastLeaf := index.RightMostChild()
 		rootLevel := RootLevelFromLeafIndex(lastLeaf.LeafIndexOnLevel())
 
-		for index.Level() <= rootLevel {
+		for index.Level() < rootLevel {
 			// judge whether the node is frozen
 			if index.Postorder() < stream.next {
 				// frozen node here must be left child
@@ -110,13 +110,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 			index = index.Parent()
 		}
 
-		root, err := db.Get(merkleKey(index.Postorder()))
-		if err != nil {
-			return nil, err
-		}
-
-		stream.root = index
-		stream.rootHash = root
+		stream.Digest()
 	}
 
 	return stream, nil
@@ -185,7 +179,9 @@ func (s *MerkleTreeStreaming) Digest() []byte {
 			index = index.Parent()
 		}
 
+		s.root = index
 		s.rootHash = hash
+		s.isRootValid = true
 	}
 
 	return s.rootHash
@@ -198,12 +194,17 @@ func (s *MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
 		return nil, fmt.Errorf("id out of range: %d", id)
 	}
 
+	rootHash := s.Digest()
+	rootLevel := s.root.Level()
+	if rootLevel == 0 {
+		return [][]byte{rootHash}, nil
+	}
+
 	hash, err := s.db.Get(merkleKey(index.Postorder()))
 	if err != nil {
 		return nil, err
 	}
 
-	rootLevel := s.root.Level()
 	hashPath := make([][]byte, 0, rootLevel+1)
 	hashPath = append(hashPath, hash)
 
@@ -215,9 +216,10 @@ func (s *MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
 		}
 
 		hashPath = append(hashPath, siblingHash)
+		index = index.Parent()
 	}
 
-	hashPath = append(hashPath, s.Digest())
+	hashPath = append(hashPath, rootHash)
 	return hashPath, nil
 }
 
