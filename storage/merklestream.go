@@ -56,6 +56,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 			return nil, err
 		}
 
+		// recover lost nodes
 		for index.IsRightChild() {
 			sibling := index.Sibling()
 			siblingHash, err := db.Get(merkleKey(sibling.Postorder()))
@@ -81,10 +82,11 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 			return nil, err
 		}
 
+		// update left siblings
 		lastLeaf := index.RightMostChild()
 		rootLevel := RootLevelFromLeafIndex(lastLeaf.LeafIndexOnLevel())
 
-		for index.Level() < rootLevel {
+		for index.Level() <= rootLevel {
 			// judge whether the node is frozen
 			if index.Postorder() < stream.next {
 				// frozen node here must be left child
@@ -110,6 +112,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 			index = index.Parent()
 		}
 
+		// update root
 		stream.Digest()
 	}
 
@@ -205,7 +208,7 @@ func (s *MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
 		return nil, err
 	}
 
-	hashPath := make([][]byte, 0, rootLevel+1)
+	hashPath := make([][]byte, 0, rootLevel+2)
 	hashPath = append(hashPath, hash)
 
 	for index.Parent().Level() <= rootLevel {
