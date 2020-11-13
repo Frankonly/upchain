@@ -3,10 +3,12 @@ package api
 import (
 	"context"
 	"errors"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+
 	pb "upchain/api/accumulator"
 	"upchain/storage"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type APIServer struct {
