@@ -1,0 +1,39 @@
+syntax = "proto3";
+
+option go_package = "upchain/api/accumulator";
+
+package accumulator;
+
+// The accumulator service definition
+service Accumulator{
+  // Append a new hash
+  rpc Append (AppendRequest) returns (AppendReply) {}
+  rpc ID (IDRequest) returns (IDReply) {}
+  rpc GetProof (GetProofRequest) returns (GetProofReply) {}
+}
+
+message AppendRequest{
+  bytes hash = 1;
+}
+
+message AppendReply{
+  uint64 id = 1;
+}
+
+message IDRequest{
+  uint64 id = 1;
+}
+
+message IDReply{
+  bytes hash = 1;
+}
+
+message GetProofRequest{
+  uint64 id = 1;
+}
+
+message GetProofReply{
+  bytes target_hash = 1;
+  bytes digest = 2;
+  repeated bytes path = 3;
+}
