@@ -6,8 +6,6 @@ import (
 	"fmt"
 
 	"upchain/crypto"
-
-	lerrors "github.com/syndtr/goleveldb/leveldb/errors"
 )
 
 const (
@@ -34,7 +32,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 
 	res, err := db.Get([]byte(sizeKey))
 	if err != nil {
-		if !errors.Is(lerrors.ErrNotFound, err) {
+		if !errors.Is(err, ErrNotFound) {
 			return nil, err
 		}
 
@@ -122,7 +120,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 func (s *MerkleTreeStreaming) Get(id uint64) ([]byte, error) {
 	index := FromLeafIndex(id)
 	if index.Postorder() >= s.next {
-		return nil, fmt.Errorf("id out of range: %d", id)
+		return nil, fmt.Errorf("%w: %d", ErrOutOfRange, id)
 	}
 	return s.db.Get(merkleKey(index.Postorder()))
 }
@@ -194,7 +192,7 @@ func (s *MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
 	index := FromLeafIndex(id)
 
 	if index.Postorder() >= s.next {
-		return nil, fmt.Errorf("id out of range: %d", id)
+		return nil, fmt.Errorf("%w: %d", ErrOutOfRange, id)
 	}
 
 	rootHash := s.Digest()
@@ -215,7 +213,7 @@ func (s *MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
 		sibling := index.Sibling()
 		siblingHash, err := s.getCurrentHash(sibling)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to generate hash path: %s", err.Error())
 		}
 
 		hashPath = append(hashPath, siblingHash)

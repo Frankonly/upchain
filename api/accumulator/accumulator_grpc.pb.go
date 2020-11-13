@@ -18,9 +18,9 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AccumulatorClient interface {
 	// Append a new hash
-	Append(ctx context.Context, in *AppendRequest, opts ...grpc.CallOption) (*AppendReply, error)
-	ID(ctx context.Context, in *IDRequest, opts ...grpc.CallOption) (*IDReply, error)
-	GetProof(ctx context.Context, in *GetProofRequest, opts ...grpc.CallOption) (*GetProofReply, error)
+	Append(ctx context.Context, in *Hash, opts ...grpc.CallOption) (*ID, error)
+	Get(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Hash, error)
+	GetProofByID(ctx context.Context, in *ID, opts ...grpc.CallOption) (*GetProofReply, error)
 }
 
 type accumulatorClient struct {
@@ -31,8 +31,8 @@ func NewAccumulatorClient(cc grpc.ClientConnInterface) AccumulatorClient {
 	return &accumulatorClient{cc}
 }
 
-func (c *accumulatorClient) Append(ctx context.Context, in *AppendRequest, opts ...grpc.CallOption) (*AppendReply, error) {
-	out := new(AppendReply)
+func (c *accumulatorClient) Append(ctx context.Context, in *Hash, opts ...grpc.CallOption) (*ID, error) {
+	out := new(ID)
 	err := c.cc.Invoke(ctx, "/accumulator.Accumulator/Append", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -40,18 +40,18 @@ func (c *accumulatorClient) Append(ctx context.Context, in *AppendRequest, opts 
 	return out, nil
 }
 
-func (c *accumulatorClient) ID(ctx context.Context, in *IDRequest, opts ...grpc.CallOption) (*IDReply, error) {
-	out := new(IDReply)
-	err := c.cc.Invoke(ctx, "/accumulator.Accumulator/ID", in, out, opts...)
+func (c *accumulatorClient) Get(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Hash, error) {
+	out := new(Hash)
+	err := c.cc.Invoke(ctx, "/accumulator.Accumulator/Get", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *accumulatorClient) GetProof(ctx context.Context, in *GetProofRequest, opts ...grpc.CallOption) (*GetProofReply, error) {
+func (c *accumulatorClient) GetProofByID(ctx context.Context, in *ID, opts ...grpc.CallOption) (*GetProofReply, error) {
 	out := new(GetProofReply)
-	err := c.cc.Invoke(ctx, "/accumulator.Accumulator/GetProof", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/accumulator.Accumulator/GetProofByID", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -63,9 +63,9 @@ func (c *accumulatorClient) GetProof(ctx context.Context, in *GetProofRequest, o
 // for forward compatibility
 type AccumulatorServer interface {
 	// Append a new hash
-	Append(context.Context, *AppendRequest) (*AppendReply, error)
-	ID(context.Context, *IDRequest) (*IDReply, error)
-	GetProof(context.Context, *GetProofRequest) (*GetProofReply, error)
+	Append(context.Context, *Hash) (*ID, error)
+	Get(context.Context, *ID) (*Hash, error)
+	GetProofByID(context.Context, *ID) (*GetProofReply, error)
 	mustEmbedUnimplementedAccumulatorServer()
 }
 
@@ -73,14 +73,14 @@ type AccumulatorServer interface {
 type UnimplementedAccumulatorServer struct {
 }
 
-func (UnimplementedAccumulatorServer) Append(context.Context, *AppendRequest) (*AppendReply, error) {
+func (UnimplementedAccumulatorServer) Append(context.Context, *Hash) (*ID, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Append not implemented")
 }
-func (UnimplementedAccumulatorServer) ID(context.Context, *IDRequest) (*IDReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ID not implemented")
+func (UnimplementedAccumulatorServer) Get(context.Context, *ID) (*Hash, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
-func (UnimplementedAccumulatorServer) GetProof(context.Context, *GetProofRequest) (*GetProofReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetProof not implemented")
+func (UnimplementedAccumulatorServer) GetProofByID(context.Context, *ID) (*GetProofReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetProofByID not implemented")
 }
 func (UnimplementedAccumulatorServer) mustEmbedUnimplementedAccumulatorServer() {}
 
@@ -96,7 +96,7 @@ func RegisterAccumulatorServer(s grpc.ServiceRegistrar, srv AccumulatorServer) {
 }
 
 func _Accumulator_Append_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AppendRequest)
+	in := new(Hash)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -108,43 +108,43 @@ func _Accumulator_Append_Handler(srv interface{}, ctx context.Context, dec func(
 		FullMethod: "/accumulator.Accumulator/Append",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AccumulatorServer).Append(ctx, req.(*AppendRequest))
+		return srv.(AccumulatorServer).Append(ctx, req.(*Hash))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Accumulator_ID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(IDRequest)
+func _Accumulator_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AccumulatorServer).ID(ctx, in)
+		return srv.(AccumulatorServer).Get(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/accumulator.Accumulator/ID",
+		FullMethod: "/accumulator.Accumulator/Get",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AccumulatorServer).ID(ctx, req.(*IDRequest))
+		return srv.(AccumulatorServer).Get(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Accumulator_GetProof_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetProofRequest)
+func _Accumulator_GetProofByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AccumulatorServer).GetProof(ctx, in)
+		return srv.(AccumulatorServer).GetProofByID(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/accumulator.Accumulator/GetProof",
+		FullMethod: "/accumulator.Accumulator/GetProofByID",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AccumulatorServer).GetProof(ctx, req.(*GetProofRequest))
+		return srv.(AccumulatorServer).GetProofByID(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -158,12 +158,12 @@ var _Accumulator_serviceDesc = grpc.ServiceDesc{
 			Handler:    _Accumulator_Append_Handler,
 		},
 		{
-			MethodName: "ID",
-			Handler:    _Accumulator_ID_Handler,
+			MethodName: "Get",
+			Handler:    _Accumulator_Get_Handler,
 		},
 		{
-			MethodName: "GetProof",
-			Handler:    _Accumulator_GetProof_Handler,
+			MethodName: "GetProofByID",
+			Handler:    _Accumulator_GetProofByID_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -1,5 +1,12 @@
 package storage
 
+import "fmt"
+
+var (
+	ErrOutOfRange = fmt.Errorf("out of range")
+	ErrNotFound   = fmt.Errorf("not found")
+)
+
 type MerkleAccumulator interface {
 	Append([]byte) (uint64, error)
 	Get(uint64) ([]byte, error)

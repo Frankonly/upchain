@@ -7,32 +7,21 @@ package accumulator;
 // The accumulator service definition
 service Accumulator{
   // Append a new hash
-  rpc Append (AppendRequest) returns (AppendReply) {}
-  rpc ID (IDRequest) returns (IDReply) {}
-  rpc GetProof (GetProofRequest) returns (GetProofReply) {}
+  rpc Append (Hash) returns (ID) {}
+  rpc Get (ID) returns (Hash) {}
+  rpc GetProofByID (ID) returns (GetProofReply) {}
 }
 
-message AppendRequest{
+message ID {
+  uint64 id = 1;
+}
+
+message Hash {
   bytes hash = 1;
+
 }
 
-message AppendReply{
-  uint64 id = 1;
-}
-
-message IDRequest{
-  uint64 id = 1;
-}
-
-message IDReply{
-  bytes hash = 1;
-}
-
-message GetProofRequest{
-  uint64 id = 1;
-}
-
-message GetProofReply{
+message GetProofReply {
   bytes target_hash = 1;
   bytes digest = 2;
   repeated bytes path = 3;

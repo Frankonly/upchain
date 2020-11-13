@@ -1,6 +1,11 @@
 package storage
 
-import "github.com/syndtr/goleveldb/leveldb"
+import (
+	"errors"
+
+	"github.com/syndtr/goleveldb/leveldb"
+	lerrors "github.com/syndtr/goleveldb/leveldb/errors"
+)
 
 type LevelDBHelper struct {
 	db *leveldb.DB
@@ -20,7 +25,12 @@ func (h *LevelDBHelper) Close() error {
 }
 
 func (h *LevelDBHelper) Get(key []byte) ([]byte, error) {
-	return h.db.Get(key, nil)
+	value, err := h.db.Get(key, nil)
+	if errors.Is(err, lerrors.ErrNotFound) {
+		return nil, ErrNotFound
+	}
+
+	return value, err
 }
 
 func (h *LevelDBHelper) Put(key, value []byte) error {
