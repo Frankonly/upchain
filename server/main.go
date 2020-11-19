@@ -19,14 +19,14 @@ var (
 	tls      = flag.Bool("tls", false, "Connection uses TLS if true, else plain TCP")
 	certFile = flag.String("cert_file", "", "The TLS cert file")
 	keyFile  = flag.String("key_file", "", "The TLS key file")
-	dbFile   = flag.String("db_file", "", "The upchain DB file")
+	dbDir    = flag.String("db_dir", "accumulator.db", "The upchain DB directory")
 	port     = flag.Int("port", 10000, "The server port")
 )
 
 func main() {
 	flag.Parse()
 
-	db, err := storage.NewLevelDB(data.Path(*dbFile))
+	db, err := storage.NewLevelDB(data.Path(*dbDir))
 	if err != nil {
 		log.Fatalf("failed to initialize db: %v", err)
 	}
@@ -60,6 +60,7 @@ func main() {
 	apiServer := api.NewServer(merkle)
 	pb.RegisterAccumulatorServer(grpcServer, apiServer)
 
+	fmt.Println("Serving", port)
 	err = grpcServer.Serve(lis)
 	log.Println(err)
 }
