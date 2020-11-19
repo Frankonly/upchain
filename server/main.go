@@ -60,7 +60,7 @@ func main() {
 	apiServer := api.NewServer(merkle)
 	pb.RegisterAccumulatorServer(grpcServer, apiServer)
 
-	fmt.Println("Serving", port)
+	fmt.Println("Serving at port:", *port)
 	err = grpcServer.Serve(lis)
 	log.Println(err)
 }
