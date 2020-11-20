@@ -167,6 +167,10 @@ func (s *MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
 
 func (s *MerkleTreeStreaming) Digest() []byte {
 	if !s.isRootValid {
+		if s.next == 0 {
+			return nil
+		}
+
 		index := FromPostorder(s.next - 1)
 		hash := s.lastHash
 

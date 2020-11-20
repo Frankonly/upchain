@@ -91,6 +91,9 @@ func TestMerkleTreeStreaming_Digest(t *testing.T) {
 	r.NoError(err)
 	r.NotNil(merkle)
 
+	digest := merkle.Digest()
+	r.Empty(digest)
+
 	hashes := make([][]byte, 1025)
 
 	for i := range hashes {
@@ -127,6 +130,9 @@ func TestMerkleTreeStreaming_GetProof(t *testing.T) {
 	merkle, err := NewMerkleTreeStreaming(db)
 	r.NoError(err)
 	r.NotNil(merkle)
+
+	digest := merkle.Digest()
+	r.Empty(digest)
 
 	hashes := make([][]byte, 1025)
 
@@ -172,6 +178,9 @@ func TestMerkleTreeStreamingLoad(t *testing.T) {
 	merkle, err := NewMerkleTreeStreaming(db)
 	r.NoError(err)
 	r.NotNil(merkle)
+
+	digest := merkle.Digest()
+	r.Empty(digest)
 
 	hashes := make([][]byte, 33)
 
@@ -230,6 +239,9 @@ func TestMerkleTreeStreamingRecover(t *testing.T) {
 	merkle, err := NewMerkleTreeStreaming(db)
 	r.NoError(err)
 	r.NotNil(merkle)
+
+	digest := merkle.Digest()
+	r.Empty(digest)
 
 	hashes := make([][]byte, 33)
 

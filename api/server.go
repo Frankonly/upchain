@@ -11,16 +11,16 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type APIServer struct {
+type Server struct {
 	pb.UnimplementedAccumulatorServer
 	accumulator storage.MerkleAccumulator
 }
 
-func NewServer(accumulator storage.MerkleAccumulator) *APIServer {
-	return &APIServer{accumulator: accumulator}
+func NewServer(accumulator storage.MerkleAccumulator) *Server {
+	return &Server{accumulator: accumulator}
 }
 
-func (s APIServer) Append(_ context.Context, hash *pb.Hash) (*pb.ID, error) {
+func (s Server) Append(_ context.Context, hash *pb.Hash) (*pb.ID, error) {
 	// TODO: check length of hash
 	id, err := s.accumulator.Append(hash.Hash)
 	if err != nil {
@@ -30,7 +30,7 @@ func (s APIServer) Append(_ context.Context, hash *pb.Hash) (*pb.ID, error) {
 	return &pb.ID{Id: id}, nil
 }
 
-func (s APIServer) Get(_ context.Context, id *pb.ID) (*pb.Hash, error) {
+func (s Server) Get(_ context.Context, id *pb.ID) (*pb.Hash, error) {
 	hash, err := s.accumulator.Get(id.Id)
 	switch {
 	case errors.Is(err, storage.ErrOutOfRange):
@@ -44,7 +44,16 @@ func (s APIServer) Get(_ context.Context, id *pb.ID) (*pb.Hash, error) {
 	}
 }
 
-func (s APIServer) GetProofByID(_ context.Context, id *pb.ID) (*pb.GetProofReply, error) {
+func (s Server) GetDigest(context.Context, *pb.Empty) (*pb.Hash, error) {
+	digest := s.accumulator.Digest()
+	if len(digest) == 0 {
+		return nil, status.Error(codes.Unavailable, "no data now")
+	}
+
+	return &pb.Hash{Hash: digest}, nil
+}
+
+func (s Server) GetProofByID(_ context.Context, id *pb.ID) (*pb.GetProofReply, error) {
 	path, err := s.accumulator.GetProof(id.Id)
 	switch {
 	case errors.Is(err, storage.ErrOutOfRange):
