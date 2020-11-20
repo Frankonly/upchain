@@ -10,7 +10,7 @@ service Accumulator{
   rpc Append (Hash) returns (ID) {}
   rpc Get (ID) returns (Hash) {}
   rpc GetDigest(Empty) returns (Hash) {}
-  rpc GetProofByID (ID) returns (GetProofReply) {}
+  rpc GetProofByID (ID) returns (HashProof) {}
 }
 
 message ID {
@@ -19,13 +19,17 @@ message ID {
 
 message Hash {
   bytes hash = 1;
-
 }
 
-message GetProofReply {
-  bytes target_hash = 1;
+message HashProof {
+  bytes hash = 1;
   bytes digest = 2;
-  repeated bytes path = 3;
+  repeated HashNode path = 3;
+}
+
+message HashNode {
+  bool left = 1;
+  bytes hash = 2;
 }
 
 message Empty{}

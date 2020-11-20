@@ -21,7 +21,7 @@ type AccumulatorClient interface {
 	Append(ctx context.Context, in *Hash, opts ...grpc.CallOption) (*ID, error)
 	Get(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Hash, error)
 	GetDigest(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Hash, error)
-	GetProofByID(ctx context.Context, in *ID, opts ...grpc.CallOption) (*GetProofReply, error)
+	GetProofByID(ctx context.Context, in *ID, opts ...grpc.CallOption) (*HashProof, error)
 }
 
 type accumulatorClient struct {
@@ -59,8 +59,8 @@ func (c *accumulatorClient) GetDigest(ctx context.Context, in *Empty, opts ...gr
 	return out, nil
 }
 
-func (c *accumulatorClient) GetProofByID(ctx context.Context, in *ID, opts ...grpc.CallOption) (*GetProofReply, error) {
-	out := new(GetProofReply)
+func (c *accumulatorClient) GetProofByID(ctx context.Context, in *ID, opts ...grpc.CallOption) (*HashProof, error) {
+	out := new(HashProof)
 	err := c.cc.Invoke(ctx, "/accumulator.Accumulator/GetProofByID", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ type AccumulatorServer interface {
 	Append(context.Context, *Hash) (*ID, error)
 	Get(context.Context, *ID) (*Hash, error)
 	GetDigest(context.Context, *Empty) (*Hash, error)
-	GetProofByID(context.Context, *ID) (*GetProofReply, error)
+	GetProofByID(context.Context, *ID) (*HashProof, error)
 	mustEmbedUnimplementedAccumulatorServer()
 }
 
@@ -93,7 +93,7 @@ func (UnimplementedAccumulatorServer) Get(context.Context, *ID) (*Hash, error) {
 func (UnimplementedAccumulatorServer) GetDigest(context.Context, *Empty) (*Hash, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetDigest not implemented")
 }
-func (UnimplementedAccumulatorServer) GetProofByID(context.Context, *ID) (*GetProofReply, error) {
+func (UnimplementedAccumulatorServer) GetProofByID(context.Context, *ID) (*HashProof, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProofByID not implemented")
 }
 func (UnimplementedAccumulatorServer) mustEmbedUnimplementedAccumulatorServer() {}
