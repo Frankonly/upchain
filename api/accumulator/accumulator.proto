@@ -9,6 +9,7 @@ service Accumulator{
   // Append a new hash
   rpc Append (Hash) returns (ID) {}
   rpc Get (ID) returns (Hash) {}
+  rpc GetDigest(Empty) returns (Hash) {}
   rpc GetProofByID (ID) returns (GetProofReply) {}
 }
 
@@ -26,3 +27,5 @@ message GetProofReply {
   bytes digest = 2;
   repeated bytes path = 3;
 }
+
+message Empty{}

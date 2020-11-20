@@ -22,6 +22,7 @@ func Init() error {
 	rootCmd.PersistentFlags().BoolVar(&secureConn, "secure", false, "connect with TLS")
 
 	rootCmd.AddCommand(getCmd)
+	rootCmd.AddCommand(appendCmd)
 
 	return nil
 }
