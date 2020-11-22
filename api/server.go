@@ -53,7 +53,7 @@ func (s Server) GetDigest(context.Context, *pb.Empty) (*pb.Hash, error) {
 	return &pb.Hash{Hash: digest}, nil
 }
 
-func (s Server) GetProofByID(_ context.Context, id *pb.ID) (*pb.GetProofReply, error) {
+func (s Server) GetProofByID(_ context.Context, id *pb.ID) (*pb.HashProof, error) {
 	path, err := s.accumulator.GetProof(id.Id)
 	switch {
 	case errors.Is(err, storage.ErrOutOfRange):
@@ -65,13 +65,13 @@ func (s Server) GetProofByID(_ context.Context, id *pb.ID) (*pb.GetProofReply, e
 	case len(path) == 0:
 		return nil, status.Error(codes.Internal, "failed to get proof")
 	default:
-		reply := &pb.GetProofReply{}
-		reply.TargetHash = path[0]
-		reply.Digest = path[len(path)-1]
+		proof := &pb.HashProof{}
+		proof.Hash = path[0]
+		proof.Digest = path[len(path)-1]
 		if len(path) > 1 {
-			reply.Path = path[1 : len(path)-1]
+			proof.Path = path[1 : len(path)-1]
 		}
 
-		return reply, nil
+		return proof, nil
 	}
 }

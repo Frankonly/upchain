@@ -23,6 +23,8 @@ func Init() error {
 
 	rootCmd.AddCommand(getCmd)
 	rootCmd.AddCommand(appendCmd)
+	rootCmd.AddCommand(digestCmd)
+	rootCmd.AddCommand(proofCmd)
 
 	return nil
 }
