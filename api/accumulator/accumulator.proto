@@ -24,12 +24,7 @@ message Hash {
 message HashProof {
   bytes hash = 1;
   bytes digest = 2;
-  repeated HashNode path = 3;
-}
-
-message HashNode {
-  bool left = 1;
-  bytes hash = 2;
+  repeated bytes path = 3;
 }
 
 message Empty{}
