@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io/ioutil"
 	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
 
 	pb "upchain/api/accumulator"
+	"upchain/crypto"
 )
 
 var (
@@ -50,7 +52,7 @@ var (
 
 			id, err := Client().Append(ctx, &pb.Hash{Hash: hash})
 			if err == nil {
-				fmt.Println("transaction ID:", id.Id)
+				fmt.Println("Transaction ID:", id.Id)
 			}
 
 			return err
@@ -97,6 +99,31 @@ var (
 					path = append(path, hex.EncodeToString(hash))
 				}
 				fmt.Println("HashPath:", path)
+			}
+
+			return err
+		},
+	}
+
+	registerCmd = &cobra.Command{
+		Use:   "register [FILE]",
+		Short: "Register a file to upchain server by saving its hash for proof",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fileByte, err := ioutil.ReadFile(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid file path %s: %w", args[0], err)
+			}
+
+			hash := crypto.Hash(fileByte)
+			fmt.Println("Hash:", hex.EncodeToString(hash))
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+			defer cancel()
+
+			id, err := Client().Append(ctx, &pb.Hash{Hash: hash})
+			if err == nil {
+				fmt.Println("Transaction ID:", id.Id)
 			}
 
 			return err
