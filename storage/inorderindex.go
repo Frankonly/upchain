@@ -31,7 +31,7 @@ func FromPostorder(postorder uint64) InorderIndex {
 	for i := maxLevel; i >= 0; i-- {
 		if postorder >= fullBinarySize {
 			postorder -= fullBinarySize
-			bitmap |= (1 << i)
+			bitmap |= 1 << i
 		}
 		fullBinarySize >>= 1
 	}
@@ -88,7 +88,7 @@ func (i InorderIndex) IsRightChild() bool {
 // LeftChild returns the left child
 func (i InorderIndex) LeftChild() (InorderIndex, error) {
 	if i.IsLeaf() {
-		return 0, fmt.Errorf("Leaf has no child")
+		return 0, fmt.Errorf("leaf has no child")
 	}
 	return i & ^(isolateRightMostZeroBit(i) >> 1), nil
 }
@@ -96,7 +96,7 @@ func (i InorderIndex) LeftChild() (InorderIndex, error) {
 // RightChild returns the right child
 func (i InorderIndex) RightChild() (InorderIndex, error) {
 	if i.IsLeaf() {
-		return 0, fmt.Errorf("Leaf has no child")
+		return 0, fmt.Errorf("leaf has no child")
 	}
 	return (i | isolateRightMostZeroBit(i)) & ^(isolateRightMostZeroBit(i) >> 1), nil
 }

@@ -33,7 +33,7 @@ func main() {
 
 	merkle, err := storage.NewMerkleTreeStreaming(db)
 	if err != nil {
-		log.Fatal("failed to initialize merkle accumulator: %v", err)
+		log.Fatalf("failed to initialize merkle accumulator: %v", err)
 	}
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))

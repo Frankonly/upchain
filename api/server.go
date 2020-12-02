@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 
-	pb "upchain/api/accumulator"
-	"upchain/storage"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	pb "upchain/api/accumulator"
+	"upchain/storage"
 )
 
 type Server struct {
