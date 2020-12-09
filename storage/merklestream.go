@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	sizeKey      = "s"
-	merklePrefix = "m"
+	sizeKey             = "s"
+	merklePrefix        = "m"
+	leafHashIndexPrefix = "l"
 )
 
 const HashPlaceholder = "merkle placeholder"
@@ -133,6 +134,16 @@ func (s *MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
 
 	s.isRootValid = false
 	id := index.LeafIndexOnLevel()
+
+	// using oldest proof strategy here
+	_, err := s.db.Get(leafKey(hash))
+	if errors.Is(err, ErrNotFound) {
+		if err := s.db.Put(leafKeyValue(hash, index.Postorder())); err != nil {
+			return 0, err
+		}
+	} else if err != nil {
+		return 0, err
+	}
 
 	for i := range s.leftSiblings {
 		if err := s.db.Put(merkleKey(index.Postorder()), hash); err != nil {
@@ -264,8 +275,8 @@ func (s *MerkleTreeStreaming) getCurrentHash(index InorderIndex) ([]byte, error)
 	return crypto.HashNodes(leftHash, rightHash), nil
 }
 
-func merkleKey(id uint64) []byte {
+func merkleKey(order uint64) []byte {
 	key := make([]byte, 8)
-	binary.BigEndian.PutUint64(key, id)
+	binary.BigEndian.PutUint64(key, order)
 	return append([]byte(merklePrefix), key...)
 }
