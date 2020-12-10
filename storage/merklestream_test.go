@@ -2,7 +2,7 @@ package storage
 
 import (
 	"bytes"
-	"encoding/binary"
+	"errors"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -70,6 +70,152 @@ func TestMerkleTreeStreamingRW(t *testing.T) {
 		value, err := merkle.Get(uint64(i))
 		r.NoError(err)
 		r.Equal(hashes[i], value)
+	}
+
+	r.NoError(merkle.Close())
+	r.NoError(os.RemoveAll(path))
+}
+
+func TestMerkleTreeStreaming_Search(t *testing.T) {
+	r := require.New(t)
+	rand.Seed(time.Now().UnixNano())
+
+	path := filepath.Join(os.TempDir(), testDB)
+	r.NoError(os.RemoveAll(path))
+
+	db, err := NewLevelDB(path)
+	r.NoError(err)
+	r.NotNil(db)
+
+	merkle, err := NewMerkleTreeStreaming(db)
+	r.NoError(err)
+	r.NotNil(merkle)
+
+	hashes := make([][]byte, 1025)
+	for i := range hashes {
+		hashes[i] = make([]byte, 32)
+		rand.Read(hashes[i])
+
+		id, err := merkle.Append(hashes[i])
+		r.NoError(err)
+		r.EqualValues(i, id)
+
+		hash, err := merkle.Get(id)
+		r.NoError(err)
+		r.Zero(bytes.Compare(hashes[i], hash))
+
+		id, err = merkle.Search(hash)
+		r.NoError(err)
+		r.EqualValues(i, id)
+	}
+
+	for i := range hashes {
+		value, err := merkle.Get(uint64(i))
+		r.NoError(err)
+		r.Equal(hashes[i], value)
+
+		id, err := merkle.Search(hashes[i])
+		r.NoError(err)
+		r.EqualValues(i, id)
+	}
+
+	r.NoError(merkle.Close())
+	r.NoError(os.RemoveAll(path))
+}
+
+func TestMerkleTreeStreamingIndexAutoDelete(t *testing.T) {
+	r := require.New(t)
+	rand.Seed(time.Now().UnixNano())
+
+	path := filepath.Join(os.TempDir(), testDB)
+	r.NoError(os.RemoveAll(path))
+
+	db, err := NewLevelDB(path)
+	r.NoError(err)
+	r.NotNil(db)
+
+	merkle, err := NewMerkleTreeStreaming(db)
+	r.NoError(err)
+	r.NotNil(merkle)
+
+	hashes := make([][]byte, 65)
+	lastLeaf := FromLeafIndex(uint64(len(hashes) - 1)).Postorder()
+
+	for i := range hashes {
+		hashes[i] = make([]byte, 32)
+		rand.Read(hashes[i])
+
+		id, err := merkle.Append(hashes[i])
+		r.NoError(err)
+		r.EqualValues(i, id)
+
+		hash, err := merkle.Get(id)
+		r.NoError(err)
+		r.Zero(bytes.Compare(hashes[i], hash))
+
+		id, err = merkle.Search(hash)
+		r.NoError(err)
+		r.EqualValues(i, id)
+	}
+
+	for k := 0; k < 32; k++ {
+		r.NoError(db.Close())
+
+		db, err = NewLevelDB(path)
+		r.NoError(err)
+		r.NotNil(db)
+
+		cut := uint64(rand.Intn(int(lastLeaf)))
+		r.NoError(db.Put(sizeKeyValue(cut)))
+
+		merkle, err = NewMerkleTreeStreaming(db)
+		r.NoError(err)
+		r.NotNil(merkle)
+
+		last := -1
+		if cut > 0 {
+			last = int(FromPostorder(cut - 1).RightMostChild().LeafIndexOnLevel())
+			id, err := merkle.Search(hashes[last])
+			r.NoError(err)
+			r.EqualValues(last, id)
+		}
+
+		for i := last + 1; i < len(hashes); i++ {
+			invalid := hashes[i]
+			_, err := merkle.Search(invalid)
+			r.Error(err)
+			r.True(errors.Is(err, ErrNotFound))
+
+			hashes[i] = make([]byte, 32)
+			rand.Read(hashes[i])
+
+			id, err := merkle.Append(hashes[i])
+			r.NoError(err)
+			r.EqualValues(i, id)
+
+			hash, err := merkle.Get(id)
+			r.NoError(err)
+			r.Zero(bytes.Compare(hashes[i], hash))
+
+			id, err = merkle.Search(hash)
+			r.NoError(err)
+			r.EqualValues(i, id)
+
+			_, err = merkle.Search(invalid)
+			r.Error(err)
+			r.True(errors.Is(err, ErrNotFound))
+		}
+
+	}
+
+	for i := range hashes {
+		value, err := merkle.Get(uint64(i))
+		r.NoError(err)
+		r.Equal(hashes[i], value)
+
+		id, err := merkle.Search(hashes[i])
+		r.NoError(err)
+		r.EqualValues(i, id)
 	}
 
 	r.NoError(merkle.Close())
@@ -200,6 +346,10 @@ func TestMerkleTreeStreamingLoad(t *testing.T) {
 		r.NoError(err)
 		r.Equal(hashes[i], target)
 
+		id, err = merkle.Search(hashes[i])
+		r.NoError(err)
+		r.EqualValues(i, id)
+
 		digest = merkle.Digest()
 		r.NotEmpty(digest)
 
@@ -244,7 +394,7 @@ func TestMerkleTreeStreamingRecover(t *testing.T) {
 		digest := merkle.Digest()
 		r.NotEmpty(digest)
 
-		r.NoError(merkle.Close())
+		r.NoError(db.Close())
 
 		db, err = NewLevelDB(path)
 		r.NoError(err)
@@ -253,9 +403,7 @@ func TestMerkleTreeStreamingRecover(t *testing.T) {
 		distance := FromLeafIndex(id+1).Postorder() - FromLeafIndex(id).Postorder()
 		if distance > 1 {
 			potentialSize := FromLeafIndex(id).Postorder() + 1 + uint64(rand.Intn(int(distance-1)))
-			size := make([]byte, 8)
-			binary.BigEndian.PutUint64(size, potentialSize)
-			r.NoError(db.Put([]byte(sizeKey), size))
+			r.NoError(db.Put(sizeKeyValue(potentialSize)))
 		}
 
 		merkle, err = NewMerkleTreeStreaming(db)
@@ -265,6 +413,10 @@ func TestMerkleTreeStreamingRecover(t *testing.T) {
 		target, err := merkle.Get(id)
 		r.NoError(err)
 		r.Equal(hashes[i], target)
+
+		id, err = merkle.Search(hashes[i])
+		r.NoError(err)
+		r.EqualValues(i, id)
 
 		digest = merkle.Digest()
 		r.NotEmpty(digest)

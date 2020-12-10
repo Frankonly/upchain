@@ -10,6 +10,7 @@ var (
 type MerkleAccumulator interface {
 	Append([]byte) (uint64, error)
 	Get(uint64) ([]byte, error)
+	Search([]byte) (uint64, error)
 	Digest() []byte
 	GetProof(uint64) ([][]byte, error)
 	Close() error

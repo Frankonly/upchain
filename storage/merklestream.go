@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -9,7 +10,7 @@ import (
 )
 
 const (
-	sizeKey             = "s"
+	sizeConstantKey     = "s"
 	merklePrefix        = "m"
 	leafHashIndexPrefix = "l"
 )
@@ -31,7 +32,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 	stream := &MerkleTreeStreaming{db: db}
 	stream.placeholderHash = crypto.Hash([]byte(HashPlaceholder))
 
-	res, err := db.Get([]byte(sizeKey))
+	res, err := db.Get(sizeKey())
 	if err != nil {
 		if !errors.Is(err, ErrNotFound) {
 			return nil, err
@@ -42,7 +43,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 
 	stream.next = binary.BigEndian.Uint64(res)
 	if stream.next == 0 {
-		if err := db.Put([]byte(sizeKey), res); err != nil {
+		if err := db.Put(sizeKey(), res); err != nil {
 			return nil, err
 		}
 
@@ -75,9 +76,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 		stream.lastHash = hash
 
 		// update size
-		size := make([]byte, 8)
-		binary.BigEndian.PutUint64(size, stream.next)
-		if err := db.Put([]byte(sizeKey), size); err != nil {
+		if err := db.Put(sizeKeyValue(stream.next)); err != nil {
 			return nil, err
 		}
 
@@ -167,13 +166,44 @@ func (s *MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
 	}
 
 	// update size
-	size := make([]byte, 8)
-	binary.BigEndian.PutUint64(size, s.next)
-	if err := s.db.Put([]byte(sizeKey), size); err != nil {
+	if err := s.db.Put(sizeKeyValue(s.next)); err != nil {
 		return 0, err
 	}
 
 	return id, nil
+}
+
+func (s *MerkleTreeStreaming) Search(hash []byte) (uint64, error) {
+	value, err := s.db.Get(leafKey(hash))
+	if err != nil {
+		return 0, err
+	}
+
+	order := binary.BigEndian.Uint64(value)
+	index := FromPostorder(order)
+	if !index.IsLeaf() {
+		return 0, fmt.Errorf("not leaf")
+	}
+
+	if index.Postorder() >= s.next {
+		return 0, ErrNotFound
+	}
+
+	leafHash, err := s.db.Get(merkleKey(order))
+	if err != nil {
+		return 0, nil
+	}
+
+	if bytes.Compare(hash, leafHash) != 0 {
+		err := s.db.Delete(leafKey(hash))
+		if err != nil {
+			return 0, err
+		}
+
+		return 0, ErrNotFound
+	}
+
+	return index.LeafIndexOnLevel(), nil
 }
 
 func (s *MerkleTreeStreaming) Digest() []byte {
@@ -273,10 +303,4 @@ func (s *MerkleTreeStreaming) getCurrentHash(index InorderIndex) ([]byte, error)
 	}
 
 	return crypto.HashNodes(leftHash, rightHash), nil
-}
-
-func merkleKey(order uint64) []byte {
-	key := make([]byte, 8)
-	binary.BigEndian.PutUint64(key, order)
-	return append([]byte(merklePrefix), key...)
 }
