@@ -9,8 +9,10 @@ service Accumulator{
   // Append a new hash
   rpc Append (Hash) returns (ID) {}
   rpc Get (ID) returns (Hash) {}
+  rpc Search (Hash) returns (ID) {}
   rpc GetDigest(Empty) returns (Hash) {}
   rpc GetProofByID (ID) returns (HashProof) {}
+  rpc GetProofByHash (Hash) returns (HashProof) {}
 }
 
 message ID {
