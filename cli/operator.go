@@ -15,6 +15,28 @@ import (
 )
 
 var (
+	appendCmd = &cobra.Command{
+		Use:   "append HASH",
+		Short: "Append hash to upchain server",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			hash, err := hex.DecodeString(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid hash in hex: %w", err)
+			}
+
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
+			defer cancel()
+
+			id, err := Client().Append(ctx, &pb.Hash{Hash: hash})
+			if err == nil {
+				fmt.Println("Transaction ID:", id.Id)
+			}
+
+			return err
+		},
+	}
+
 	getCmd = &cobra.Command{
 		Use:   "get ID",
 		Short: "Get hash from upchain server by transaction id",
@@ -37,9 +59,9 @@ var (
 		},
 	}
 
-	appendCmd = &cobra.Command{
-		Use:   "append HASH",
-		Short: "Append hash to upchain server",
+	searchCmd = &cobra.Command{
+		Use:   "search HASH",
+		Short: "Get id from upchain server by transaction hash",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			hash, err := hex.DecodeString(args[0])
@@ -50,9 +72,9 @@ var (
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 			defer cancel()
 
-			id, err := Client().Append(ctx, &pb.Hash{Hash: hash})
+			id, err := Client().Search(ctx, &pb.Hash{Hash: hash})
 			if err == nil {
-				fmt.Println("Transaction ID:", id.Id)
+				fmt.Println(id.Id)
 			}
 
 			return err
@@ -77,19 +99,27 @@ var (
 	}
 
 	proofCmd = &cobra.Command{
-		Use:   "proof ID",
+		Use:   "proof (HASH|ID)",
 		Short: "Get hash proof of certain transaction from upchain server",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			id, err := strconv.ParseUint(args[0], 10, 64)
-			if err != nil {
-				return fmt.Errorf("invalid id %s: %w", args[0], err)
-			}
+			var hashProof *pb.HashProof
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 			defer cancel()
 
-			hashProof, err := Client().GetProofByID(ctx, &pb.ID{Id: id})
+			hash, err := hex.DecodeString(args[0])
+			if err != nil {
+				id, err2 := strconv.ParseUint(args[0], 10, 64)
+				if err2 != nil {
+					return fmt.Errorf("invalid input %s, need uint64 or hex string", args[0])
+				}
+
+				hashProof, err = Client().GetProofByID(ctx, &pb.ID{Id: id})
+			} else {
+				hashProof, err = Client().GetProofByHash(ctx, &pb.Hash{Hash: hash})
+			}
+
 			if err == nil {
 				fmt.Println("Hash:", hex.EncodeToString(hashProof.Hash))
 				fmt.Println("Digest:", hex.EncodeToString(hashProof.Digest))

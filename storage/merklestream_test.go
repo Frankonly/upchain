@@ -205,7 +205,6 @@ func TestMerkleTreeStreamingIndexAutoDelete(t *testing.T) {
 			r.Error(err)
 			r.True(errors.Is(err, ErrNotFound))
 		}
-
 	}
 
 	for i := range hashes {
