@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"errors"
-
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -40,7 +39,19 @@ func (s Server) Get(_ context.Context, id *pb.ID) (*pb.Hash, error) {
 	case err != nil:
 		return nil, status.Error(codes.Internal, err.Error())
 	default:
-		return &pb.Hash{Hash: hash}, err
+		return &pb.Hash{Hash: hash}, nil
+	}
+}
+
+func (s Server) Search(_ context.Context, hash *pb.Hash) (*pb.ID, error) {
+	id, err := s.accumulator.Search(hash.Hash)
+	switch {
+	case errors.Is(err, storage.ErrNotFound):
+		return nil, status.Error(codes.NotFound, err.Error())
+	case err != nil:
+		return nil, status.Error(codes.Internal, err.Error())
+	default:
+		return &pb.ID{Id: id}, nil
 	}
 }
 
@@ -54,7 +65,23 @@ func (s Server) GetDigest(context.Context, *pb.Empty) (*pb.Hash, error) {
 }
 
 func (s Server) GetProofByID(_ context.Context, id *pb.ID) (*pb.HashProof, error) {
-	path, err := s.accumulator.GetProof(id.Id)
+	return s.getProofByID(id.Id)
+}
+
+func (s Server) GetProofByHash(_ context.Context, hash *pb.Hash) (*pb.HashProof, error) {
+	id, err := s.accumulator.Search(hash.Hash)
+	if errors.Is(err, storage.ErrNotFound) {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return s.getProofByID(id)
+}
+
+func (s Server) getProofByID(id uint64) (*pb.HashProof, error) {
+	path, err := s.accumulator.GetProof(id)
 	switch {
 	case errors.Is(err, storage.ErrOutOfRange):
 		return nil, status.Error(codes.OutOfRange, err.Error())
