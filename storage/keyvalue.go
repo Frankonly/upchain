@@ -32,3 +32,14 @@ func leafKeyValue(hash []byte, order uint64) ([]byte, []byte) {
 
 	return leafKey(hash), value
 }
+
+func rootKey(hash []byte) []byte {
+	return append([]byte(rootHashIndexPrefix), hash...)
+}
+
+func rootKeyValue(hash []byte, order uint64) ([]byte, []byte) {
+	value := make([]byte, 8)
+	binary.BigEndian.PutUint64(value, order)
+
+	return rootKey(hash), value
+}

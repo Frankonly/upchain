@@ -251,7 +251,9 @@ func TestMerkleTreeStreaming_Digest(t *testing.T) {
 		r.Zero(bytes.Compare(hashes[i], value))
 
 		digest := testDigest(hashes[:i+1])
-		r.Equal(digest, merkle.Digest())
+		rootHash, err := merkle.Digest()
+		r.NoError(err)
+		r.Equal(digest, rootHash)
 	}
 
 	r.NoError(merkle.Close())
@@ -283,7 +285,8 @@ func TestMerkleTreeStreaming_GetProof(t *testing.T) {
 		r.NoError(err)
 		r.EqualValues(i, id)
 
-		digest := merkle.Digest()
+		digest, err := merkle.Digest()
+		r.NoError(err)
 		r.NotEmpty(digest)
 
 		id = rand.Uint64() % uint64(i+1)
@@ -328,7 +331,8 @@ func TestMerkleTreeStreamingLoad(t *testing.T) {
 		r.NoError(err)
 		r.EqualValues(i, id)
 
-		digest := merkle.Digest()
+		digest, err := merkle.Digest()
+		r.NoError(err)
 		r.NotEmpty(digest)
 
 		r.NoError(merkle.Close())
@@ -349,7 +353,8 @@ func TestMerkleTreeStreamingLoad(t *testing.T) {
 		r.NoError(err)
 		r.EqualValues(i, id)
 
-		digest = merkle.Digest()
+		digest, err = merkle.Digest()
+		r.NoError(err)
 		r.NotEmpty(digest)
 
 		path, err := merkle.GetProof(id)
@@ -390,7 +395,8 @@ func TestMerkleTreeStreamingRecover(t *testing.T) {
 		r.NoError(err)
 		r.EqualValues(i, id)
 
-		digest := merkle.Digest()
+		digest, err := merkle.Digest()
+		r.NoError(err)
 		r.NotEmpty(digest)
 
 		r.NoError(db.Close())
@@ -417,7 +423,8 @@ func TestMerkleTreeStreamingRecover(t *testing.T) {
 		r.NoError(err)
 		r.EqualValues(i, id)
 
-		digest = merkle.Digest()
+		digest, err = merkle.Digest()
+		r.NoError(err)
 		r.NotEmpty(digest)
 
 		path, err := merkle.GetProof(id)

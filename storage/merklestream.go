@@ -10,9 +10,11 @@ import (
 )
 
 const (
-	sizeConstantKey     = "s"
+	sizeConstantKey = "s"
+
 	merklePrefix        = "m"
 	leafHashIndexPrefix = "l"
+	rootHashIndexPrefix = "r"
 )
 
 const HashPlaceholder = "merkle placeholder"
@@ -111,7 +113,10 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 		}
 
 		// update root
-		stream.Digest()
+		_, err = stream.digest(false)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return stream, nil
@@ -206,31 +211,8 @@ func (s *MerkleTreeStreaming) Search(hash []byte) (uint64, error) {
 	return index.LeafIndexOnLevel(), nil
 }
 
-func (s *MerkleTreeStreaming) Digest() []byte {
-	if !s.isRootValid {
-		if s.next == 0 {
-			return nil
-		}
-
-		index := FromPostorder(s.next - 1)
-		hash := s.lastHash
-
-		for index.LeftMostChild() != 0 {
-			if index.IsLeftChild() {
-				hash = crypto.HashNodes(hash, s.placeholderHash)
-			} else {
-				hash = crypto.HashNodes(s.leftSiblings[index.Level()], hash)
-			}
-
-			index = index.Parent()
-		}
-
-		s.root = index
-		s.rootHash = hash
-		s.isRootValid = true
-	}
-
-	return s.rootHash
+func (s *MerkleTreeStreaming) Digest() ([]byte, error) {
+	return s.digest(true)
 }
 
 func (s *MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
@@ -240,7 +222,11 @@ func (s *MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
 		return nil, fmt.Errorf("%w: %d", ErrOutOfRange, id)
 	}
 
-	rootHash := s.Digest()
+	rootHash, err := s.digest(false)
+	if err != nil {
+		return nil, err
+	}
+
 	rootLevel := s.root.Level()
 	if rootLevel == 0 {
 		return [][]byte{rootHash}, nil
@@ -271,6 +257,40 @@ func (s *MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
 
 func (s *MerkleTreeStreaming) Close() error {
 	return s.db.Close()
+}
+
+func (s *MerkleTreeStreaming) digest(indexRoot bool) ([]byte, error) {
+	if !s.isRootValid {
+		if s.next == 0 {
+			return nil, ErrEmpty
+		}
+
+		index := FromPostorder(s.next - 1)
+		hash := s.lastHash
+		order := index.RightMostChild().Postorder()
+
+		for index.LeftMostChild() != 0 {
+			if index.IsLeftChild() {
+				hash = crypto.HashNodes(hash, s.placeholderHash)
+			} else {
+				hash = crypto.HashNodes(s.leftSiblings[index.Level()], hash)
+			}
+
+			index = index.Parent()
+		}
+
+		s.root = index
+		s.rootHash = hash
+		s.isRootValid = true
+
+		if indexRoot {
+			if err := s.db.Put(rootKeyValue(hash, order)); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return s.rootHash, nil
 }
 
 func (s *MerkleTreeStreaming) getCurrentHash(index InorderIndex) ([]byte, error) {

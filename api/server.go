@@ -57,12 +57,15 @@ func (s Server) Search(_ context.Context, hash *pb.Hash) (*pb.ID, error) {
 }
 
 func (s Server) GetDigest(context.Context, *pb.Empty) (*pb.Hash, error) {
-	digest := s.accumulator.Digest()
-	if len(digest) == 0 {
-		return nil, status.Error(codes.Unavailable, "no data now")
+	digest, err := s.accumulator.Digest()
+	switch {
+	case errors.Is(err, storage.ErrEmpty):
+		return nil, status.Error(codes.Unavailable, err.Error())
+	case err != nil:
+		return nil, status.Error(codes.Internal, err.Error())
+	default:
+		return &pb.Hash{Hash: digest}, nil
 	}
-
-	return &pb.Hash{Hash: digest}, nil
 }
 
 func (s Server) GetProofByID(_ context.Context, id *pb.ID) (*pb.HashProof, error) {
