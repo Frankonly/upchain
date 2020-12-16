@@ -215,21 +215,37 @@ func (s *MerkleTreeStreaming) Digest() ([]byte, error) {
 	return s.digest(true)
 }
 
-func (s *MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
+func (s *MerkleTreeStreaming) GetProof(id uint64, digest []byte) ([][]byte, error) {
 	index := FromLeafIndex(id)
-
 	if index.Postorder() >= s.next {
 		return nil, fmt.Errorf("%w: %d", ErrOutOfRange, id)
 	}
 
-	rootHash, err := s.digest(false)
-	if err != nil {
-		return nil, err
-	}
+	var err error
+	var lastFrozen uint64
+	var rootLevel int
 
-	rootLevel := s.root.Level()
-	if rootLevel == 0 {
-		return [][]byte{rootHash}, nil
+	rootHash := digest
+	if rootHash == nil {
+		lastFrozen = s.next - 1
+
+		rootHash, err = s.digest(false)
+		if err != nil {
+			return nil, err
+		}
+
+		rootLevel = s.root.Level()
+	} else {
+		value, err := s.db.Get(rootKey(rootHash))
+		if errors.Is(err, ErrNotFound) {
+			return nil, ErrInvalidDigest
+		} else if err != nil {
+			return nil, err
+		}
+
+		lastFrozen = binary.BigEndian.Uint64(value)
+		lastIndex := FromPostorder(lastFrozen)
+		rootLevel = RootLevelFromLeafIndex(lastIndex.RightMostChild().LeafIndexOnLevel())
 	}
 
 	hash, err := s.db.Get(merkleKey(index.Postorder()))
@@ -237,12 +253,20 @@ func (s *MerkleTreeStreaming) GetProof(id uint64) ([][]byte, error) {
 		return nil, err
 	}
 
+	if rootLevel == 0 {
+		if bytes.Equal(rootHash, hash) {
+			return [][]byte{rootHash}, nil
+		}
+
+		return nil, ErrNotFound
+	}
+
 	hashPath := make([][]byte, 0, rootLevel+2)
 	hashPath = append(hashPath, hash)
 
 	for index.Parent().Level() <= rootLevel {
 		sibling := index.Sibling()
-		siblingHash, err := s.getCurrentHash(sibling)
+		siblingHash, err := s.getHash(sibling, lastFrozen)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate hash path: %s", err.Error())
 		}
@@ -267,7 +291,7 @@ func (s *MerkleTreeStreaming) digest(indexRoot bool) ([]byte, error) {
 
 		index := FromPostorder(s.next - 1)
 		hash := s.lastHash
-		order := index.RightMostChild().Postorder()
+		order := index.Postorder()
 
 		for index.LeftMostChild() != 0 {
 			if index.IsLeftChild() {
@@ -293,12 +317,12 @@ func (s *MerkleTreeStreaming) digest(indexRoot bool) ([]byte, error) {
 	return s.rootHash, nil
 }
 
-func (s *MerkleTreeStreaming) getCurrentHash(index InorderIndex) ([]byte, error) {
-	if index.Postorder() < s.next {
+func (s *MerkleTreeStreaming) getHash(index InorderIndex, lastFrozen uint64) ([]byte, error) {
+	if index.Postorder() <= lastFrozen {
 		return s.db.Get(merkleKey(index.Postorder()))
 	}
 
-	if index.LeftMostChild().Postorder() >= s.next {
+	if index.LeftMostChild().Postorder() > lastFrozen {
 		return s.placeholderHash, nil
 	}
 
@@ -312,12 +336,12 @@ func (s *MerkleTreeStreaming) getCurrentHash(index InorderIndex) ([]byte, error)
 		return nil, err
 	}
 
-	leftHash, err := s.getCurrentHash(leftChild)
+	leftHash, err := s.getHash(leftChild, lastFrozen)
 	if err != nil {
 		return nil, err
 	}
 
-	rightHash, err := s.getCurrentHash(rightChild)
+	rightHash, err := s.getHash(rightChild, lastFrozen)
 	if err != nil {
 		return nil, err
 	}

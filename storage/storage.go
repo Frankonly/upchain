@@ -3,9 +3,10 @@ package storage
 import "fmt"
 
 var (
-	ErrOutOfRange = fmt.Errorf("out of range")
-	ErrNotFound   = fmt.Errorf("not found")
-	ErrEmpty      = fmt.Errorf("empty")
+	ErrOutOfRange    = fmt.Errorf("out of range")
+	ErrNotFound      = fmt.Errorf("not found")
+	ErrEmpty         = fmt.Errorf("empty")
+	ErrInvalidDigest = fmt.Errorf("invliad digest")
 )
 
 type MerkleAccumulator interface {
@@ -13,7 +14,7 @@ type MerkleAccumulator interface {
 	Get(uint64) ([]byte, error)
 	Search([]byte) (uint64, error)
 	Digest() ([]byte, error)
-	GetProof(uint64) ([][]byte, error)
+	GetProof(uint64, []byte) ([][]byte, error)
 	Close() error
 }
 
