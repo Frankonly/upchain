@@ -85,7 +85,7 @@ func (s Server) GetProofByHash(_ context.Context, hash *pb.Hash) (*pb.HashProof,
 }
 
 func (s Server) getProofByID(id uint64) (*pb.HashProof, error) {
-	path, err := s.accumulator.GetProof(id)
+	path, err := s.accumulator.GetProof(id, nil)
 	switch {
 	case errors.Is(err, storage.ErrOutOfRange):
 		return nil, status.Error(codes.OutOfRange, err.Error())
