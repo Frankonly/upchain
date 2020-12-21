@@ -248,6 +248,10 @@ func (s *MerkleTreeStreaming) GetProof(id uint64, digest []byte) ([][]byte, erro
 		rootLevel = RootLevelFromLeafIndex(lastIndex.RightMostChild().LeafIndexOnLevel())
 	}
 
+	if lastFrozen < index.Postorder() {
+		return nil, ErrNotFound
+	}
+
 	hash, err := s.db.Get(merkleKey(index.Postorder()))
 	if err != nil {
 		return nil, err
@@ -291,7 +295,6 @@ func (s *MerkleTreeStreaming) digest(indexRoot bool) ([]byte, error) {
 
 		index := FromPostorder(s.next - 1)
 		hash := s.lastHash
-		order := index.Postorder()
 
 		for index.LeftMostChild() != 0 {
 			if index.IsLeftChild() {
@@ -306,14 +309,19 @@ func (s *MerkleTreeStreaming) digest(indexRoot bool) ([]byte, error) {
 		s.root = index
 		s.rootHash = hash
 		s.isRootValid = true
-
-		if indexRoot {
-			if err := s.db.Put(rootKeyValue(hash, order)); err != nil {
-				return nil, err
-			}
-		}
 	}
 
+	if indexRoot {
+		_, err := s.db.Get(rootKey(s.rootHash))
+		if errors.Is(err, ErrNotFound) {
+			order := FromPostorder(s.next - 1).Postorder()
+			err = s.db.Put(rootKeyValue(s.rootHash, order))
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
 	return s.rootHash, nil
 }
 

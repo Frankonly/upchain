@@ -306,6 +306,85 @@ func TestMerkleTreeStreaming_GetProof(t *testing.T) {
 	r.NoError(os.RemoveAll(path))
 }
 
+func TestMerkleTreeStreamingGetProofFromOldDigest(t *testing.T) {
+	r := require.New(t)
+	rand.Seed(time.Now().UnixNano())
+
+	path := filepath.Join(os.TempDir(), testDB)
+	r.NoError(os.RemoveAll(path))
+
+	db, err := NewLevelDB(path)
+	r.NoError(err)
+	r.NotNil(db)
+
+	merkle, err := NewMerkleTreeStreaming(db)
+	r.NoError(err)
+	r.NotNil(merkle)
+
+	hashes := make([][]byte, 65)
+	digests := make([][]byte, 0, 65)
+
+	for i := range hashes {
+		hashes[i] = make([]byte, 32)
+		rand.Read(hashes[i])
+
+		id, err := merkle.Append(hashes[i])
+		r.NoError(err)
+		r.EqualValues(i, id)
+
+		digest, err := merkle.Digest()
+		r.NoError(err)
+		r.NotEmpty(digest)
+
+		digests = append(digests, digest)
+
+		id = rand.Uint64() % uint64(i+1)
+		target, err := merkle.Get(id)
+		r.NoError(err)
+
+		path, err := merkle.GetProof(id, nil)
+		r.NoError(err)
+		r.NotEmpty(path)
+
+		r.Equal(target, path[0])
+		r.Equal(digest, path[len(path)-1])
+		r.True(testVerify(path[0], path[1:]))
+
+		for j := 0; j <= i; j++ {
+			target, err := merkle.Get(uint64(j))
+			r.NoError(err)
+
+			path, err := merkle.GetProof(uint64(j), digest)
+			r.NoError(err)
+			r.NotEmpty(path)
+
+			r.Equal(target, path[0])
+			r.Equal(digest, path[len(path)-1])
+			r.True(testVerify(path[0], path[1:]))
+		}
+	}
+
+	for i, digest := range digests {
+		for j, target := range hashes {
+			path, err := merkle.GetProof(uint64(j), digest)
+			if i >= j {
+				r.NoError(err)
+				r.NotEmpty(path)
+
+				r.Equal(target, path[0])
+				r.Equal(digest, path[len(path)-1])
+				r.True(testVerify(path[0], path[1:]))
+			} else {
+				r.Error(err)
+				r.True(errors.Is(err, ErrNotFound))
+			}
+		}
+	}
+
+	r.NoError(merkle.Close())
+	r.NoError(os.RemoveAll(path))
+}
+
 func TestMerkleTreeStreamingLoad(t *testing.T) {
 	r := require.New(t)
 	rand.Seed(time.Now().UnixNano())
