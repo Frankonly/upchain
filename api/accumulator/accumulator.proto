@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+//protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative accumulator.proto
+
 option go_package = "upchain/api/accumulator";
 
 package accumulator;
@@ -13,6 +15,8 @@ service Accumulator{
   rpc GetDigest(Empty) returns (Hash) {}
   rpc GetProofByID (ID) returns (HashProof) {}
   rpc GetProofByHash (Hash) returns (HashProof) {}
+  rpc GetOldProofByID (GetOldProofByIDRequest) returns (HashProof) {}
+  rpc GetOldProofByHash (GetOldProofByHashRequest) returns (HashProof) {}
 }
 
 message ID {
@@ -27,6 +31,16 @@ message HashProof {
   bytes hash = 1;
   bytes digest = 2;
   repeated bytes path = 3;
+}
+
+message GetOldProofByIDRequest {
+  uint64 id = 1;
+  bytes digest = 2;
+}
+
+message GetOldProofByHashRequest {
+  bytes hash = 1;
+  bytes digest = 2;
 }
 
 message Empty{}

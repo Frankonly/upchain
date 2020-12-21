@@ -24,6 +24,8 @@ type AccumulatorClient interface {
 	GetDigest(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Hash, error)
 	GetProofByID(ctx context.Context, in *ID, opts ...grpc.CallOption) (*HashProof, error)
 	GetProofByHash(ctx context.Context, in *Hash, opts ...grpc.CallOption) (*HashProof, error)
+	GetOldProofByID(ctx context.Context, in *GetOldProofByIDRequest, opts ...grpc.CallOption) (*HashProof, error)
+	GetOldProofByHash(ctx context.Context, in *GetOldProofByHashRequest, opts ...grpc.CallOption) (*HashProof, error)
 }
 
 type accumulatorClient struct {
@@ -88,6 +90,24 @@ func (c *accumulatorClient) GetProofByHash(ctx context.Context, in *Hash, opts .
 	return out, nil
 }
 
+func (c *accumulatorClient) GetOldProofByID(ctx context.Context, in *GetOldProofByIDRequest, opts ...grpc.CallOption) (*HashProof, error) {
+	out := new(HashProof)
+	err := c.cc.Invoke(ctx, "/accumulator.Accumulator/GetOldProofByID", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *accumulatorClient) GetOldProofByHash(ctx context.Context, in *GetOldProofByHashRequest, opts ...grpc.CallOption) (*HashProof, error) {
+	out := new(HashProof)
+	err := c.cc.Invoke(ctx, "/accumulator.Accumulator/GetOldProofByHash", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AccumulatorServer is the server API for Accumulator service.
 // All implementations must embed UnimplementedAccumulatorServer
 // for forward compatibility
@@ -99,6 +119,8 @@ type AccumulatorServer interface {
 	GetDigest(context.Context, *Empty) (*Hash, error)
 	GetProofByID(context.Context, *ID) (*HashProof, error)
 	GetProofByHash(context.Context, *Hash) (*HashProof, error)
+	GetOldProofByID(context.Context, *GetOldProofByIDRequest) (*HashProof, error)
+	GetOldProofByHash(context.Context, *GetOldProofByHashRequest) (*HashProof, error)
 	mustEmbedUnimplementedAccumulatorServer()
 }
 
@@ -123,6 +145,12 @@ func (UnimplementedAccumulatorServer) GetProofByID(context.Context, *ID) (*HashP
 }
 func (UnimplementedAccumulatorServer) GetProofByHash(context.Context, *Hash) (*HashProof, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetProofByHash not implemented")
+}
+func (UnimplementedAccumulatorServer) GetOldProofByID(context.Context, *GetOldProofByIDRequest) (*HashProof, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOldProofByID not implemented")
+}
+func (UnimplementedAccumulatorServer) GetOldProofByHash(context.Context, *GetOldProofByHashRequest) (*HashProof, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOldProofByHash not implemented")
 }
 func (UnimplementedAccumulatorServer) mustEmbedUnimplementedAccumulatorServer() {}
 
@@ -245,6 +273,42 @@ func _Accumulator_GetProofByHash_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Accumulator_GetOldProofByID_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOldProofByIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccumulatorServer).GetOldProofByID(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/accumulator.Accumulator/GetOldProofByID",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccumulatorServer).GetOldProofByID(ctx, req.(*GetOldProofByIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Accumulator_GetOldProofByHash_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetOldProofByHashRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AccumulatorServer).GetOldProofByHash(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/accumulator.Accumulator/GetOldProofByHash",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AccumulatorServer).GetOldProofByHash(ctx, req.(*GetOldProofByHashRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Accumulator_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "accumulator.Accumulator",
 	HandlerType: (*AccumulatorServer)(nil),
@@ -272,6 +336,14 @@ var _Accumulator_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetProofByHash",
 			Handler:    _Accumulator_GetProofByHash_Handler,
+		},
+		{
+			MethodName: "GetOldProofByID",
+			Handler:    _Accumulator_GetOldProofByID_Handler,
+		},
+		{
+			MethodName: "GetOldProofByHash",
+			Handler:    _Accumulator_GetOldProofByHash_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

@@ -84,6 +84,14 @@ func (s Server) GetProofByHash(_ context.Context, hash *pb.Hash) (*pb.HashProof,
 	return s.getProofByID(id)
 }
 
+func (s Server) GetOldProofByID(context.Context, *pb.GetOldProofByIDRequest) (*pb.HashProof, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOldProofByID not implemented")
+}
+
+func (s Server) GetOldProofByHash(context.Context, *pb.GetOldProofByHashRequest) (*pb.HashProof, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetOldProofByHash not implemented")
+}
+
 func (s Server) getProofByID(id uint64) (*pb.HashProof, error) {
 	path, err := s.accumulator.GetProof(id, nil)
 	switch {
