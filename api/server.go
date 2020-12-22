@@ -69,7 +69,7 @@ func (s Server) GetDigest(context.Context, *pb.Empty) (*pb.Hash, error) {
 }
 
 func (s Server) GetProofByID(_ context.Context, id *pb.ID) (*pb.HashProof, error) {
-	return s.getProofByID(id.Id)
+	return s.getProofByID(id.Id, nil)
 }
 
 func (s Server) GetProofByHash(_ context.Context, hash *pb.Hash) (*pb.HashProof, error) {
@@ -81,19 +81,27 @@ func (s Server) GetProofByHash(_ context.Context, hash *pb.Hash) (*pb.HashProof,
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	return s.getProofByID(id)
+	return s.getProofByID(id, nil)
 }
 
-func (s Server) GetOldProofByID(context.Context, *pb.GetOldProofByIDRequest) (*pb.HashProof, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetOldProofByID not implemented")
+func (s Server) GetOldProofByID(_ context.Context, in *pb.GetOldProofByIDRequest) (*pb.HashProof, error) {
+	return s.getProofByID(in.Id, in.Digest)
 }
 
-func (s Server) GetOldProofByHash(context.Context, *pb.GetOldProofByHashRequest) (*pb.HashProof, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetOldProofByHash not implemented")
+func (s Server) GetOldProofByHash(_ context.Context, in *pb.GetOldProofByHashRequest) (*pb.HashProof, error) {
+	id, err := s.accumulator.Search(in.Hash)
+	if errors.Is(err, storage.ErrNotFound) {
+		return nil, status.Error(codes.NotFound, err.Error())
+	}
+	if err != nil {
+		return nil, status.Error(codes.Internal, err.Error())
+	}
+
+	return s.getProofByID(id, in.Digest)
 }
 
-func (s Server) getProofByID(id uint64) (*pb.HashProof, error) {
-	path, err := s.accumulator.GetProof(id, nil)
+func (s Server) getProofByID(id uint64, digest []byte) (*pb.HashProof, error) {
+	path, err := s.accumulator.GetProof(id, digest)
 	switch {
 	case errors.Is(err, storage.ErrOutOfRange):
 		return nil, status.Error(codes.OutOfRange, err.Error())
@@ -102,7 +110,7 @@ func (s Server) getProofByID(id uint64) (*pb.HashProof, error) {
 	case err != nil:
 		return nil, status.Error(codes.Internal, err.Error())
 	case len(path) == 0:
-		return nil, status.Error(codes.Internal, "failed to get proof")
+		return nil, status.Error(codes.Internal, "failed to generate proof")
 	default:
 		proof := &pb.HashProof{}
 		proof.Hash = path[0]
