@@ -99,10 +99,11 @@ var (
 	}
 
 	proofCmd = &cobra.Command{
-		Use:   "proof (HASH|ID)",
-		Short: "Get hash proof of certain transaction from upchain server",
-		Args:  cobra.ExactArgs(1),
+		Use:   "proof (HASH|ID) [DIGEST]",
+		Short: "Get hash proof from certain transaction to digest from upchain server",
+		Args:  cobra.RangeArgs(1, 2),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			var id uint64
 			var hashProof *pb.HashProof
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
@@ -110,14 +111,31 @@ var (
 
 			hash, err := hex.DecodeString(args[0])
 			if err != nil {
-				id, err2 := strconv.ParseUint(args[0], 10, 64)
-				if err2 != nil {
-					return fmt.Errorf("invalid input %s, need uint64 or hex string", args[0])
+				hash = nil
+				id, err = strconv.ParseUint(args[0], 10, 64)
+				if err != nil {
+					return fmt.Errorf("invalid first input %s, need uint64 or hex string", args[0])
+				}
+			}
+
+			if len(args) == 1 {
+				if hash == nil {
+					hashProof, err = Client().GetProofByID(ctx, &pb.ID{Id: id})
+				} else {
+					hashProof, err = Client().GetProofByHash(ctx, &pb.Hash{Hash: hash})
+				}
+			} else {
+				var digest []byte
+				digest, err = hex.DecodeString(args[1])
+				if err != nil {
+					return fmt.Errorf("invalid digest input %s, need hex string", args[1])
 				}
 
-				hashProof, err = Client().GetProofByID(ctx, &pb.ID{Id: id})
-			} else {
-				hashProof, err = Client().GetProofByHash(ctx, &pb.Hash{Hash: hash})
+				if hash == nil {
+					hashProof, err = Client().GetOldProofByID(ctx, &pb.GetOldProofByIDRequest{Id: id, Digest: digest})
+				} else {
+					hashProof, err = Client().GetOldProofByHash(ctx, &pb.GetOldProofByHashRequest{Hash: hash, Digest: digest})
+				}
 			}
 
 			if err == nil {
