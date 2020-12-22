@@ -229,7 +229,8 @@ func (s *MerkleTreeStreaming) GetProof(id uint64, digest []byte) ([][]byte, erro
 	if rootHash == nil {
 		lastFrozen = s.next - 1
 
-		rootHash, err = s.digest(false)
+		// GetProof will return the latest digest, so the current root should be indexed
+		rootHash, err = s.digest(true)
 		if err != nil {
 			return nil, err
 		}
@@ -275,8 +276,21 @@ func (s *MerkleTreeStreaming) GetProof(id uint64, digest []byte) ([][]byte, erro
 			return nil, fmt.Errorf("failed to generate hash path: %s", err.Error())
 		}
 
+		if len(digest) == 0 {
+			if index.IsLeftChild() {
+				hash = crypto.HashNodes(hash, siblingHash)
+			} else {
+				hash = crypto.HashNodes(siblingHash, hash)
+			}
+		}
+
 		hashPath = append(hashPath, siblingHash)
 		index = index.Parent()
+	}
+
+	// check the validity of digest when using old digest
+	if len(digest) == 0 && !bytes.Equal(rootHash, hash) {
+		return nil, ErrInvalidDigest
 	}
 
 	hashPath = append(hashPath, rootHash)
