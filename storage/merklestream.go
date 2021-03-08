@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"sync"
 
 	"upchain/crypto"
 )
@@ -17,19 +18,27 @@ const (
 	rootHashIndexPrefix = "r"
 )
 
+// HashPlaceHolder used to form a hash for calculating when there is no descendant fixed
 const HashPlaceholder = "merkle placeholder"
 
 type MerkleTreeStreaming struct {
-	db              KvStore
-	root            InorderIndex
-	rootHash        []byte
-	lastHash        []byte
-	next            uint64
-	leftSiblings    [maxLevel + 1][]byte
-	isRootValid     bool
+	db    KvStore
+	mutex sync.RWMutex // mutex protests not only database but also states in MerkleTreeStreaming
+
+	// states
+	root         InorderIndex
+	rootHash     []byte
+	lastHash     []byte
+	next         uint64
+	leftSiblings [maxLevel + 1][]byte
+	isRootValid  bool
+
+	// node placeholder
 	placeholderHash []byte
 }
 
+// NewMerkleTreeStreaming is only used at beginning of upchain server.
+// The db should be only used by one MerkleTreeStreaming, so there is no mutex used directly here.
 func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 	stream := &MerkleTreeStreaming{db: db}
 	stream.placeholderHash = crypto.Hash([]byte(HashPlaceholder))
@@ -122,7 +131,12 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 	return stream, nil
 }
 
+// Get searches id in database layer to find its hash.
+// Get only reads the database.
 func (s *MerkleTreeStreaming) Get(id uint64) ([]byte, error) {
+	s.mutex.RLock()
+	defer s.mutex.RUnlock()
+
 	index := FromLeafIndex(id)
 	if index.Postorder() >= s.next {
 		return nil, fmt.Errorf("%w: %d", ErrOutOfRange, id)
@@ -130,7 +144,12 @@ func (s *MerkleTreeStreaming) Get(id uint64) ([]byte, error) {
 	return s.db.Get(merkleKey(index.Postorder()))
 }
 
+// Append appends new hash to database layer.
+// Append writes the database and states
 func (s *MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	index := FromPostorder(s.next)
 	if !index.IsLeaf() {
 		return 0, fmt.Errorf("current position for writting is not a leaf")
@@ -178,7 +197,13 @@ func (s *MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
 	return id, nil
 }
 
+// Search searches hash in database layer to get the id of node. If there are several nodes contains the same hash,
+// Search returns id of the oldest node (oldest strategy).
+// Search reads and may write to database.
 func (s *MerkleTreeStreaming) Search(hash []byte) (uint64, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	value, err := s.db.Get(leafKey(hash))
 	if err != nil {
 		return 0, err
@@ -211,10 +236,14 @@ func (s *MerkleTreeStreaming) Search(hash []byte) (uint64, error) {
 	return index.LeafIndexOnLevel(), nil
 }
 
+// Digest updates the root hash of Merkle tree and returns the root.
+// Digest reads and may write to database and states. Mutex is used in s.digest()
 func (s *MerkleTreeStreaming) Digest() ([]byte, error) {
 	return s.digest(true)
 }
 
+// GetProof constructs a hash path who can proof the existence of data in certain id at the time of certain digest.
+// GetProof reads and may write to database and states.
 func (s *MerkleTreeStreaming) GetProof(id uint64, digest []byte) ([][]byte, error) {
 	index := FromLeafIndex(id)
 	if index.Postorder() >= s.next {
@@ -301,7 +330,11 @@ func (s *MerkleTreeStreaming) Close() error {
 	return s.db.Close()
 }
 
+// digest updates the root hash, reads and may write to database and states.
 func (s *MerkleTreeStreaming) digest(indexRoot bool) ([]byte, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	if !s.isRootValid {
 		if s.next == 0 {
 			return nil, ErrEmpty
@@ -339,6 +372,7 @@ func (s *MerkleTreeStreaming) digest(indexRoot bool) ([]byte, error) {
 	return s.rootHash, nil
 }
 
+// getHash reconstructs the node at the states with certain lastFrozen and returns the value.
 func (s *MerkleTreeStreaming) getHash(index InorderIndex, lastFrozen uint64) ([]byte, error) {
 	if index.Postorder() <= lastFrozen {
 		return s.db.Get(merkleKey(index.Postorder()))
