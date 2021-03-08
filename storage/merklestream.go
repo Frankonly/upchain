@@ -237,14 +237,20 @@ func (s *MerkleTreeStreaming) Search(hash []byte) (uint64, error) {
 }
 
 // Digest updates the root hash of Merkle tree and returns the root.
-// Digest reads and may write to database and states. Mutex is used in s.digest()
+// Digest reads and may write to database and states.
 func (s *MerkleTreeStreaming) Digest() ([]byte, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	return s.digest(true)
 }
 
 // GetProof constructs a hash path who can proof the existence of data in certain id at the time of certain digest.
 // GetProof reads and may write to database and states.
 func (s *MerkleTreeStreaming) GetProof(id uint64, digest []byte) ([][]byte, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	index := FromLeafIndex(id)
 	if index.Postorder() >= s.next {
 		return nil, fmt.Errorf("%w: %d", ErrOutOfRange, id)
@@ -331,10 +337,8 @@ func (s *MerkleTreeStreaming) Close() error {
 }
 
 // digest updates the root hash, reads and may write to database and states.
+// mutex should be used when a function calls digest()
 func (s *MerkleTreeStreaming) digest(indexRoot bool) ([]byte, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	if !s.isRootValid {
 		if s.next == 0 {
 			return nil, ErrEmpty

@@ -2,10 +2,12 @@ package storage
 
 import (
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"math/rand"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -514,6 +516,109 @@ func TestMerkleTreeStreamingRecover(t *testing.T) {
 		r.Equal(digest, path[len(path)-1])
 		r.True(testVerify(path[0], path[1:]))
 	}
+
+	r.NoError(merkle.Close())
+	r.NoError(os.RemoveAll(path))
+}
+
+func TestMerkleTreeStreamingConcurrently(t *testing.T) {
+	r := require.New(t)
+	rand.Seed(time.Now().UnixNano())
+
+	path := filepath.Join(os.TempDir(), testDB)
+	r.NoError(os.RemoveAll(path))
+
+	db, err := NewLevelDB(path)
+	r.NoError(err)
+	r.NotNil(db)
+
+	merkle, err := NewMerkleTreeStreaming(db)
+	r.NoError(err)
+	r.NotNil(merkle)
+
+	hashes := make([][]byte, 1025)
+	for i := range hashes {
+		hashes[i] = make([]byte, 32)
+		rand.Read(hashes[i])
+	}
+
+	wg := sync.WaitGroup{}
+	wg.Add(len(hashes))
+	for _, hash := range hashes {
+		hash := hash
+		go func() {
+			_, err := merkle.Append(hash)
+			r.NoError(err)
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+
+	sizeByte, err := db.Get(sizeKey())
+	r.NoError(err)
+	index := FromPostorder(binary.BigEndian.Uint64(sizeByte) - 1)
+	r.EqualValues(len(hashes), index.RightMostChild().LeafIndexOnLevel()+1)
+
+	for i := range hashes {
+		_, err := merkle.Get(uint64(i))
+		r.NoError(err)
+	}
+	_, err = merkle.Get(uint64(len(hashes)))
+	r.Error(err)
+
+	digest, err := merkle.Digest()
+	r.NoError(err)
+
+	wg.Add(len(hashes))
+	for i, hash := range hashes {
+		i := i
+		hash := hash
+		go func() {
+			id, err := merkle.Search(hash)
+			r.NoError(err)
+
+			path, err := merkle.GetProof(id, nil)
+			r.NoError(err)
+
+			rand.Read(hashes[i])
+			_, err = merkle.Append(hashes[i])
+			r.NoError(err)
+
+			hash, err = merkle.Get(id)
+			r.NoError(err)
+
+			r.Equal(hash, path[0])
+			r.True(testVerify(path[0], path[1:]))
+
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
+
+	wg.Add(len(hashes))
+	for i, hash := range hashes {
+		i := i
+		hash := hash
+		go func() {
+			id, err := merkle.Search(hash)
+			r.NoError(err)
+
+			pathNew, err := merkle.GetProof(id, nil)
+			r.NoError(err)
+
+			pathOld, err := merkle.GetProof(uint64(i), digest)
+			r.NoError(err)
+
+			r.True(testVerify(pathNew[0], pathNew[1:]))
+			r.True(testVerify(pathOld[0], pathOld[1:]))
+
+			wg.Done()
+		}()
+	}
+
+	wg.Wait()
 
 	r.NoError(merkle.Close())
 	r.NoError(os.RemoveAll(path))
