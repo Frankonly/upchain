@@ -12,6 +12,7 @@ import (
 
 var apiClient pb.AccumulatorClient
 
+// Client news or returns a accumulator client
 func Client() pb.AccumulatorClient {
 	if apiClient == nil {
 		var err error

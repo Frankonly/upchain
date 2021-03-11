@@ -11,15 +11,18 @@ import (
 	"upchain/storage"
 )
 
+// Server implements API server
 type Server struct {
 	pb.UnimplementedAccumulatorServer
 	accumulator storage.MerkleAccumulator
 }
 
+// NewServer returns a new API server
 func NewServer(accumulator storage.MerkleAccumulator) *Server {
 	return &Server{accumulator: accumulator}
 }
 
+// Append appends new hash to accumulator
 func (s Server) Append(_ context.Context, hash *pb.Hash) (*pb.ID, error) {
 	// TODO: check length of hash
 	id, err := s.accumulator.Append(hash.Hash)
@@ -30,6 +33,7 @@ func (s Server) Append(_ context.Context, hash *pb.Hash) (*pb.ID, error) {
 	return &pb.ID{Id: id}, nil
 }
 
+// Get gets certain hash by id from accumulator
 func (s Server) Get(_ context.Context, id *pb.ID) (*pb.Hash, error) {
 	hash, err := s.accumulator.Get(id.Id)
 	switch {
@@ -44,6 +48,7 @@ func (s Server) Get(_ context.Context, id *pb.ID) (*pb.Hash, error) {
 	}
 }
 
+// Search searches accumulator and returns id of oldest node related to input hash
 func (s Server) Search(_ context.Context, hash *pb.Hash) (*pb.ID, error) {
 	id, err := s.accumulator.Search(hash.Hash)
 	switch {
@@ -56,6 +61,7 @@ func (s Server) Search(_ context.Context, hash *pb.Hash) (*pb.ID, error) {
 	}
 }
 
+// GetDigest requests latest digest from accumulator
 func (s Server) GetDigest(context.Context, *pb.Empty) (*pb.Hash, error) {
 	digest, err := s.accumulator.Digest()
 	switch {
@@ -68,10 +74,12 @@ func (s Server) GetDigest(context.Context, *pb.Empty) (*pb.Hash, error) {
 	}
 }
 
+// GetProofByID requests hash proof of certain node to latest digest by id
 func (s Server) GetProofByID(_ context.Context, id *pb.ID) (*pb.HashProof, error) {
 	return s.getProofByID(id.Id, nil)
 }
 
+// GetProofByHash requests hash proof of certain node to latest digest by hash
 func (s Server) GetProofByHash(_ context.Context, hash *pb.Hash) (*pb.HashProof, error) {
 	id, err := s.accumulator.Search(hash.Hash)
 	if errors.Is(err, storage.ErrNotFound) {
@@ -84,10 +92,12 @@ func (s Server) GetProofByHash(_ context.Context, hash *pb.Hash) (*pb.HashProof,
 	return s.getProofByID(id, nil)
 }
 
+// GetOldProofByID requests hash proof of certain node to a past digest by id
 func (s Server) GetOldProofByID(_ context.Context, in *pb.GetOldProofByIDRequest) (*pb.HashProof, error) {
 	return s.getProofByID(in.Id, in.Digest)
 }
 
+// GetOldProofByHash requests hash proof of certain node to a past digest by hash
 func (s Server) GetOldProofByHash(_ context.Context, in *pb.GetOldProofByHashRequest) (*pb.HashProof, error) {
 	id, err := s.accumulator.Search(in.Hash)
 	if errors.Is(err, storage.ErrNotFound) {

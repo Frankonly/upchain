@@ -18,12 +18,13 @@ const (
 	rootHashIndexPrefix = "r"
 )
 
-// HashPlaceHolder used to form a hash for calculating when there is no descendant fixed
+// HashPlaceholder used to form a hash for calculating when there is no descendant fixed
 const HashPlaceholder = "merkle placeholder"
 
-type MerkleTreeStreaming struct {
+// MerkleTreeStream stores append-only data stream as a binary Merkle tree and supports core operations of MerkleAccumulator
+type MerkleTreeStream struct {
 	db    KvStore
-	mutex sync.RWMutex // mutex protests not only database but also states in MerkleTreeStreaming
+	mutex sync.RWMutex // mutex protests not only database but also states in MerkleTreeStream
 
 	// states
 	root         InorderIndex
@@ -38,9 +39,9 @@ type MerkleTreeStreaming struct {
 }
 
 // NewMerkleTreeStreaming is only used at beginning of upchain server.
-// The db should be only used by one MerkleTreeStreaming, so there is no mutex used directly here.
+// The db should be only used by one MerkleTreeStream, so there is no mutex used directly here.
 func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
-	stream := &MerkleTreeStreaming{db: db}
+	stream := &MerkleTreeStream{db: db}
 	stream.placeholderHash = crypto.Hash([]byte(HashPlaceholder))
 
 	res, err := db.Get(sizeKey())
@@ -133,7 +134,7 @@ func NewMerkleTreeStreaming(db KvStore) (MerkleAccumulator, error) {
 
 // Get searches id in database layer to find its hash.
 // Get only reads the database.
-func (s *MerkleTreeStreaming) Get(id uint64) ([]byte, error) {
+func (s *MerkleTreeStream) Get(id uint64) ([]byte, error) {
 	s.mutex.RLock()
 	defer s.mutex.RUnlock()
 
@@ -146,7 +147,7 @@ func (s *MerkleTreeStreaming) Get(id uint64) ([]byte, error) {
 
 // Append appends new hash to database layer.
 // Append writes the database and states
-func (s *MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
+func (s *MerkleTreeStream) Append(hash []byte) (uint64, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -200,7 +201,7 @@ func (s *MerkleTreeStreaming) Append(hash []byte) (uint64, error) {
 // Search searches hash in database layer to get the id of node. If there are several nodes contains the same hash,
 // Search returns id of the oldest node (oldest strategy).
 // Search reads and may write to database.
-func (s *MerkleTreeStreaming) Search(hash []byte) (uint64, error) {
+func (s *MerkleTreeStream) Search(hash []byte) (uint64, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -238,7 +239,7 @@ func (s *MerkleTreeStreaming) Search(hash []byte) (uint64, error) {
 
 // Digest updates the root hash of Merkle tree and returns the root.
 // Digest reads and may write to database and states.
-func (s *MerkleTreeStreaming) Digest() ([]byte, error) {
+func (s *MerkleTreeStream) Digest() ([]byte, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -247,7 +248,7 @@ func (s *MerkleTreeStreaming) Digest() ([]byte, error) {
 
 // GetProof constructs a hash path who can proof the existence of data in certain id at the time of certain digest.
 // GetProof reads and may write to database and states.
-func (s *MerkleTreeStreaming) GetProof(id uint64, digest []byte) ([][]byte, error) {
+func (s *MerkleTreeStream) GetProof(id uint64, digest []byte) ([][]byte, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -332,13 +333,14 @@ func (s *MerkleTreeStreaming) GetProof(id uint64, digest []byte) ([][]byte, erro
 	return hashPath, nil
 }
 
-func (s *MerkleTreeStreaming) Close() error {
+// Close closes merkle tree streaming and lower components
+func (s *MerkleTreeStream) Close() error {
 	return s.db.Close()
 }
 
 // digest updates the root hash, reads and may write to database and states.
 // mutex should be used when a function calls digest()
-func (s *MerkleTreeStreaming) digest(indexRoot bool) ([]byte, error) {
+func (s *MerkleTreeStream) digest(indexRoot bool) ([]byte, error) {
 	if !s.isRootValid {
 		if s.next == 0 {
 			return nil, ErrEmpty
@@ -377,7 +379,7 @@ func (s *MerkleTreeStreaming) digest(indexRoot bool) ([]byte, error) {
 }
 
 // getHash reconstructs the node at the states with certain lastFrozen and returns the value.
-func (s *MerkleTreeStreaming) getHash(index InorderIndex, lastFrozen uint64) ([]byte, error) {
+func (s *MerkleTreeStream) getHash(index InorderIndex, lastFrozen uint64) ([]byte, error) {
 	if index.Postorder() <= lastFrozen {
 		return s.db.Get(merkleKey(index.Postorder()))
 	}

@@ -17,6 +17,7 @@ var rootCmd = &cobra.Command{
 	Short: "Upcli is a simple command-line tool for upchain interaction",
 }
 
+// Init initiates commands
 func Init() error {
 	rootCmd.PersistentFlags().StringVar(&endpoint, "endpoint", "localhost:10000", "upchain server endpoint")
 	rootCmd.PersistentFlags().BoolVar(&secureConn, "secure", false, "connect with TLS")
@@ -31,6 +32,7 @@ func Init() error {
 	return nil
 }
 
+// Execute executes command
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
