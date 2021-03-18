@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb " github.com/frankonly/upchain/api/accumulator"
+	pb "github.com/frankonly/upchain/api/accumulator"
 	"github.com/frankonly/upchain/storage"
 )
 
