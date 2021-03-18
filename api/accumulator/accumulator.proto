@@ -2,7 +2,7 @@ syntax = "proto3";
 
 //protoc --go_out=. --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative accumulator.proto
 
-option go_package = "upchain/api/accumulator";
+option go_package = "github.com/frankonly/upchain/api/accumulator";
 
 package accumulator;
 

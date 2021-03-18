@@ -1,9 +1,9 @@
-module upchain
+module github.com/frankonly/upchain
 
 go 1.15
 
 require (
-	github.com/golang/protobuf v1.4.3
+	github.com/golang/protobuf v1.5.1
 	github.com/spf13/cobra v1.1.1
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.0
@@ -12,5 +12,6 @@ require (
 	golang.org/x/text v0.3.4 // indirect
 	google.golang.org/genproto v0.0.0-20201209185603-f92720507ed4 // indirect
 	google.golang.org/grpc v1.34.0
-	google.golang.org/protobuf v1.25.0
+	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0 // indirect
+	google.golang.org/protobuf v1.26.0
 )

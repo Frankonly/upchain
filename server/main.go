@@ -9,10 +9,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	"upchain/api"
-	pb "upchain/api/accumulator"
-	"upchain/data"
-	"upchain/storage"
+	"github.com/frankonly/upchain/api"
+	pb "github.com/frankonly/upchain/api/accumulator"
+	"github.com/frankonly/upchain/data"
+	"github.com/frankonly/upchain/storage"
 )
 
 var (

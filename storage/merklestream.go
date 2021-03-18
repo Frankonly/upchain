@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"sync"
 
-	"upchain/crypto"
+	"github.com/frankonly/upchain/crypto"
 )
 
 const (

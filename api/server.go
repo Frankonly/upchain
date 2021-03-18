@@ -7,8 +7,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	pb "upchain/api/accumulator"
-	"upchain/storage"
+	pb " github.com/frankonly/upchain/api/accumulator"
+	"github.com/frankonly/upchain/storage"
 )
 
 // Server implements API server

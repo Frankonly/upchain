@@ -13,7 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"upchain/crypto"
+	"github.com/frankonly/upchain/crypto"
 )
 
 func TestMerkleTreeStreaming(t *testing.T) {

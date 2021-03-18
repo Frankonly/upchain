@@ -7,7 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
-	pb "upchain/api/accumulator"
+	pb "github.com/frankonly/upchain/api/accumulator"
 )
 
 var apiClient pb.AccumulatorClient

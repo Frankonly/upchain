@@ -10,8 +10,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	pb "upchain/api/accumulator"
-	"upchain/crypto"
+	pb "github.com/frankonly/upchain/api/accumulator"
+	"github.com/frankonly/upchain/crypto"
 )
 
 var (

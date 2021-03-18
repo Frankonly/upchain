@@ -11,6 +11,7 @@ import (
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
+// Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
 // AccumulatorClient is the client API for Accumulator service.
@@ -162,7 +163,7 @@ type UnsafeAccumulatorServer interface {
 }
 
 func RegisterAccumulatorServer(s grpc.ServiceRegistrar, srv AccumulatorServer) {
-	s.RegisterService(&_Accumulator_serviceDesc, srv)
+	s.RegisterService(&Accumulator_ServiceDesc, srv)
 }
 
 func _Accumulator_Append_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -309,7 +310,10 @@ func _Accumulator_GetOldProofByHash_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
-var _Accumulator_serviceDesc = grpc.ServiceDesc{
+// Accumulator_ServiceDesc is the grpc.ServiceDesc for Accumulator service.
+// It's only intended for direct use with grpc.RegisterService,
+// and not to be introspected or modified (even as a copy)
+var Accumulator_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "accumulator.Accumulator",
 	HandlerType: (*AccumulatorServer)(nil),
 	Methods: []grpc.MethodDesc{
