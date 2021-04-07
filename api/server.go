@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -15,11 +16,12 @@ import (
 type Server struct {
 	pb.UnimplementedAccumulatorServer
 	accumulator storage.MerkleAccumulator
+	logger      *zap.SugaredLogger
 }
 
 // NewServer returns a new API server
-func NewServer(accumulator storage.MerkleAccumulator) *Server {
-	return &Server{accumulator: accumulator}
+func NewServer(accumulator storage.MerkleAccumulator, logger *zap.SugaredLogger) *Server {
+	return &Server{accumulator: accumulator, logger: logger}
 }
 
 // Append appends new hash to accumulator

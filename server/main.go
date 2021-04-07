@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"net"
 
 	"google.golang.org/grpc"
@@ -12,6 +11,7 @@ import (
 	"github.com/frankonly/upchain/api"
 	pb "github.com/frankonly/upchain/api/accumulator"
 	"github.com/frankonly/upchain/data"
+	"github.com/frankonly/upchain/log"
 	"github.com/frankonly/upchain/storage"
 )
 
@@ -25,20 +25,21 @@ var (
 
 func main() {
 	flag.Parse()
+	logger := log.New()
 
 	db, err := storage.NewLevelDB(data.Path(*dbDir))
 	if err != nil {
-		log.Fatalf("failed to initialize db: %v", err)
+		logger.Fatalf("failed to initialize db: %v", err)
 	}
 
 	merkle, err := storage.NewMerkleTreeStreaming(db)
 	if err != nil {
-		log.Fatalf("failed to initialize merkle accumulator: %v", err)
+		logger.Fatalf("failed to initialize merkle accumulator: %v", err)
 	}
 
 	lis, err := net.Listen("tcp", fmt.Sprintf("localhost:%d", *port))
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		logger.Fatalf("failed to listen: %v", err)
 	}
 
 	var opts []grpc.ServerOption
@@ -51,16 +52,16 @@ func main() {
 		}
 		creds, err := credentials.NewServerTLSFromFile(*certFile, *keyFile)
 		if err != nil {
-			log.Fatalf("Failed to generate credentials %v", err)
+			logger.Fatalf("Failed to generate credentials %v", err)
 		}
 		opts = []grpc.ServerOption{grpc.Creds(creds)}
 	}
 
 	grpcServer := grpc.NewServer(opts...)
-	apiServer := api.NewServer(merkle)
+	apiServer := api.NewServer(merkle, logger)
 	pb.RegisterAccumulatorServer(grpcServer, apiServer)
 
-	fmt.Println("Serving at port:", *port)
+	logger.Infow("upchain starts serving", "port", *port)
 	err = grpcServer.Serve(lis)
-	log.Println(err)
+	logger.Infow("upchain stops", "err", err)
 }

@@ -7,6 +7,7 @@ require (
 	github.com/spf13/cobra v1.1.1
 	github.com/stretchr/testify v1.6.1
 	github.com/syndtr/goleveldb v1.0.0
+	go.uber.org/zap v1.16.0
 	golang.org/x/net v0.0.0-20201209123823-ac852fbbde11 // indirect
 	golang.org/x/sys v0.0.0-20201207223542-d4d67f95c62d // indirect
 	golang.org/x/text v0.3.4 // indirect
