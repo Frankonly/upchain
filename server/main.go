@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/reflection"
 
 	"github.com/frankonly/upchain/api"
 	pb "github.com/frankonly/upchain/api/accumulator"
@@ -60,8 +61,9 @@ func main() {
 	grpcServer := grpc.NewServer(opts...)
 	apiServer := api.NewServer(merkle, logger)
 	pb.RegisterAccumulatorServer(grpcServer, apiServer)
+	reflection.Register(grpcServer)
 
 	logger.Infow("upchain starts serving", "port", *port)
 	err = grpcServer.Serve(lis)
-	logger.Infow("upchain stops", "err", err)
+	logger.Errorw("upchain stops", "err", err)
 }
